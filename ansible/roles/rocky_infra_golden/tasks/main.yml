@@ -1,0 +1,34 @@
+
+# - name: Run basic connectivity commands
+#   ansible.builtin.shell: |
+#     hostname
+#     ip -brief a
+#   register: shellout
+#   changed_when: false
+
+# - name: Show command output
+#   ansible.builtin.debug:
+#     msg: "{{ shellout.stdout }}"
+- name: Ensure Python requirements are met locally
+  run_once: true
+  become: false
+  delegate_to: localhost
+  pip:
+    requirements: "{{ role_path }}/files/requirements.txt"
+
+- name: Initialize golden-base facts
+  set_fact: 
+    existing_vms: false
+    golden_ip: "unknown"
+    # Create a timestamp for version tracking
+    build_timestamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M') }}"
+
+- name: create golden image
+  import_tasks: 00_create_golden.yml
+
+- name: Wait for Auto-Install shutdown
+  import_tasks: 01_wait_for_shutdown.yml
+
+- name: sysprep
+  import_tasks: 02_sysprep.yml
+

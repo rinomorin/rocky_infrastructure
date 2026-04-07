@@ -1,0 +1,166 @@
+# Minimal Rocky base image for post-install provisioning + immutable conversion
+
+# 1. Repository Configuration
+# We use the Major version (9 or 10) to pull the latest stable minor release
+url --mirrorlist=https://mirrors.rockylinux.org/mirrorlist?arch=x86_64&repo=BaseOS-{{ tos_variant }}
+repo --name=AppStream --mirrorlist=https://mirrors.rockylinux.org/mirrorlist?arch=x86_64&repo=AppStream-{{ tos_variant }}
+
+# Additional Repos for Service Layer (CRB is needed for many Infra tools)
+{% if tos_variant == '10' %}
+repo --name=CRB --mirrorlist=https://mirrors.rockylinux.org/mirrorlist?arch=x86_64&repo=CRB-10
+{% else %}
+repo --name=CRB --mirrorlist=https://mirrors.rockylinux.org/mirrorlist?arch=x86_64&repo=CRB-9
+{% endif %}
+
+lang en_CA.UTF-8
+keyboard  --vckeymap=us --xlayouts='us'
+timezone UTC,UTCS
+# NIC 1 — NAT (always enp0s1)
+network --bootproto=dhcp --device=enp1s0 --activate  --hostname={{ hostname | default(inventory_hostname) }}
+
+# ------------------------------------------------------------
+# System basics
+# ------------------------------------------------------------
+
+rootpw --lock
+user --name=core --groups=wheel --lock
+
+firewall --enabled --service=ssh
+selinux --enforcing
+services --enabled=sshd
+
+bootloader --location=mbr --boot-drive={{ install_disk }} --append="crashkernel=auto"
+
+# ------------------------------------------------------------
+# Disk layout: BIOS Boot + /boot + XFS root
+# ------------------------------------------------------------
+zerombr
+clearpart --all --initlabel
+
+# Required for GPT labels on BIOS/Legacy systems
+part biosboot --fstype=biosboot --size=1
+
+# Standard partitions
+part /boot     --fstype=xfs  --size=1024
+part /         --fstype=xfs  --size=1 --grow
+
+skipx
+text
+
+# ------------------------------------------------------------
+# Minimal package set
+# ------------------------------------------------------------
+
+%packages
+--ignoremissing
+@^minimal-environment
+bash-completion
+vim-enhanced
+tar
+gzip
+bzip2
+xz
+curl
+wget
+rsync
+chrony
+tmux
+git
+jq
+openssh-clients
+python3
+python3-pyyaml
+%end
+
+# ------------------------------------------------------------
+# Post-install configuration
+# ------------------------------------------------------------
+
+%post --log=/root/ks-post.log
+# Inject Build Metadata for tracking upgrades
+echo "IMAGE_TYPE=golden-base" > /etc/golden-release
+echo "BUILD_TIMESTAMP={{ build_timestamp }}" >> /etc/golden-release
+
+mkdir -p /home/core/.ssh
+chmod 700 /home/core/.ssh
+# allow sudoers
+cat << 'EOF' >> /etc/sudoers 
+%wheel ALL=(ALL) NOPASSWD: ALL
+EOF
+# all ssh 
+cat << 'EOF' > /home/core/.ssh/authorized_keys
+{{ rawcore_ssh_key }}
+EOF
+
+chmod 600 /home/core/.ssh/authorized_keys
+chown -R core:core /home/core/.ssh
+
+# Disable root SSH login (FCOS-style)
+sed -i 's/^#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+sed -i 's/^PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+
+# Enable chrony
+systemctl enable chronyd
+
+# Clean machine identity so clones diverge
+rm -f /etc/machine-id
+: > /etc/machine-id
+
+# Remove SSH host keys so they regenerate on first boot
+rm -f /etc/ssh/ssh_host_*
+
+# ------------------------------------------------------------
+# First-boot provisioning hook (Stage 2 will fill this in)
+# ------------------------------------------------------------
+
+cat >/usr/local/sbin/firstboot-provision.sh << 'EOF'
+#!/bin/bash
+set -euo pipefail
+
+# Regenerate machine-id if empty
+if [ ! -s /etc/machine-id ]; then
+  systemd-machine-id-setup
+fi
+
+# Regenerate SSH host keys if missing
+if ! ls /etc/ssh/ssh_host_*key >/dev/null 2>&1; then
+  /usr/libexec/openssh/sshd-keygen || ssh-keygen -A
+fi
+
+# Disable after successful run
+systemctl disable firstboot-provision.service
+EOF
+
+# Refresh repos
+dnf clean all
+dnf makecache
+
+###############################################
+# Placeholder for Stage 2 provisioning
+###############################################
+
+# Disable after successful run
+systemctl disable firstboot-provision.service
+EOF
+
+chmod 0755 /usr/local/sbin/firstboot-provision.sh
+
+cat >/etc/systemd/system/firstboot-provision.service << 'EOF'
+[Unit]
+Description=First boot provisioning for Kubernetes node
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/firstboot-provision.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl enable firstboot-provision.service
+
+%end
+poweroff

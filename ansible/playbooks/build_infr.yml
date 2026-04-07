@@ -1,0 +1,23 @@
+---
+# 1. Prepare Environment
+- name: load environment
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Ensure latest stable collections are installed on controller
+      delegate_to: localhost
+      become: false
+      run_once: true
+      command: "ansible-galaxy collection install {{ item }} --upgrade"
+      loop:
+        - community.general
+        - ansible.posix
+        - kubernetes.core  # Highly recommended for your FCOS/K8s work
+      changed_when: false # These commands check for updates every time
+
+- name: Build Golden Images
+  hosts: kvm
+  gather_facts: false
+  roles:
+    - role: rocky_infra_golden
+
