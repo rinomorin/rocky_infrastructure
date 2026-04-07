@@ -84,9 +84,15 @@
   when: not existing_vms
   register: iso_perms
 
+- name: Select Template type.
+  set_fact: 
+    build_template: "{{ 'golden_base.ks.j2' if build_profile == 'infra' else 'golden_k8s.ks.j2' }}"
+- debug:
+    msg: "{{ build_profile }} for {{ build_template }}"
+
 - name: Generate Kickstart from template for golden-base {{ golden_image_name }}
   template:
-    src: "golden_base.ks.j2"
+    src: "{{ build_template }}"
     dest: "/home/{{ cloud_helper_user }}/{{ golden_image_name }}.ks"
     owner: "{{ cloud_helper_user }}"
     group: "{{ cloud_helper_user }}"

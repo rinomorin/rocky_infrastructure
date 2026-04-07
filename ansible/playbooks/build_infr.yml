@@ -16,8 +16,65 @@
       changed_when: false # These commands check for updates every time
 
 - name: Build Golden Images
+  vars:
+    BUILD_PROFILE: "infra"
+  hosts: kvm
+  gather_facts: false
+  roles:
+    - role: rocky_infra_golden
+# 1. Prepare Environment
+- name: load environment
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Now starting the Kubnet image
+      debug:
+        msg: "\n\n\n"
+
+- name: Build Kubernet Images
+  vars:
+    BUILD_PROFILE: "k8s"
   hosts: kvm
   gather_facts: false
   roles:
     - role: rocky_infra_golden
 
+# - name: Build Golden Base Image
+#   hosts: kvm
+#   gather_facts: false
+#   vars:
+#     golden_image_name: "{{ lookup('env', 'golden_image_name') | default('golden-base', true) }}"
+#     VM_HOST_IP: "{{ lookup('env', 'VM_HOST_IP') }}"
+  
+#   pre_tasks:
+#     - name: Check if Golden Base already exists
+#       delegate_to: "{{ VM_HOST_IP }}"
+#       shell: "sudo virsh list --all | grep -qw '{{ golden_image_name }}' && echo 'YES' || echo 'NO'"
+#       register: base_check
+#       changed_when: false
+#       run_once: true
+
+#     - name: Set Build Flag
+#       set_fact:
+#         should_build_base: "{{ (base_check.stdout | trim == 'NO') or (force_new_image | default(false) | bool) or (new_image | default(false) | bool) }}"
+#       run_once: true
+#   tasks:
+#     - name: Run Golden Image Build Role
+#       include_role:
+#         name: rocky_k8s_golden
+#       when: should_build_base | bool
+
+# # 4. Deploy Infrastructure (LBs and Base Config)
+# - name: Deploy Cluster Infrastructure
+#   hosts: kvm
+#   gather_facts: false
+#   roles:
+#     - role: rocky_k8s_lbs
+#     # You can uncomment and add rocky_k8s_base here if needed
+
+# # 4. Deploy Infrastructure (LBs and Base Config)
+# - name: Deploy Cluster nodes
+#   hosts: kvm
+#   gather_facts: false
+#   roles:
+#     - role: rocky_k8s_nodes
