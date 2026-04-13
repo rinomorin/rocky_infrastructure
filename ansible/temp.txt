@@ -9,10 +9,14 @@ TOKEN_PART2=$(openssl rand -hex 8)
 export K8S_CLUSTER_TOKEN="${TOKEN_PART1}.${TOKEN_PART2}"
 echo "Generated K8s Token: $K8S_CLUSTER_TOKEN"
 export CLOUD_HELPER_USER="cloud_helper"
+export NAT_SEG="br-nat"
+export PRO_SEG="default"
+export CLD_SEG="br-cluster"
 
 # 2. Domain and DNS Hierarchy
 export ACCOUNT="MorinSoft"
 export ipa_domain="home.morinsoft.ca"
+export public_zone="home.morinsoft.ca"
 export cloud_zone="cloud.home.morinsoft.ca"
 export cloud_provision="provision.home.morinsoft.ca"
 export dns_zone="api.home.morinsoft.ca"

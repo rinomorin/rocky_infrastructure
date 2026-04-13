@@ -58,7 +58,6 @@ tmux
 git
 jq
 openssh-clients
-butane
 python3
 python3-pyyaml
 %end
@@ -79,16 +78,32 @@ chmod 700 /home/core/.ssh
 cat << 'EOF' >> /etc/sudoers 
 %wheel ALL=(ALL) NOPASSWD: ALL
 EOF
+# C. SSH Identity Setup
+mkdir -p /home/core/.ssh
 cat << 'EOF' > /home/core/.ssh/authorized_keys
 {{ rawcore_ssh_key }}
 EOF
 
-chmod 600 /home/core/.ssh/authorized_keys
+# D. Permissions & SELinux Scrub
+# We do this twice to ensure no intermediate steps mess with ownership
 chown -R core:core /home/core/.ssh
+chmod 700 /home/core/.ssh
+chmod 600 /home/core/.ssh/authorized_keys
+restorecon -Rw /home/core/.ssh
 
-# Disable root SSH login (FCOS-style)
-sed -i 's/^#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-sed -i 's/^PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+# E. Hardening Overrides (Scrub Vendor Configs)
+# This removes 40-redhat-crypto-policies.conf and 50-redhat.conf
+rm -f /etc/ssh/sshd_config.d/*.conf
+
+cat << 'EOF' > /etc/ssh/sshd_config.d/99-darkweb-hardened.conf
+# Project DarkWeb Hardening
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+# UsePAM allows system account checks but won't bypass our password disable
+UsePAM yes
+EOF
 
 # Enable chrony
 systemctl enable chronyd

@@ -1,0 +1,50 @@
+---
+- name: "Discover IP for {{ guest_member }}"
+  shell: |
+    virsh domifaddr {{ guest_member }} --source agent 2>/dev/null | \
+    grep -Evi "lo|ipv6|Name|---" | \
+    grep -oP '(\d{1,3}\.){3}\d{1,3}' | head -n 1
+  register: live_guest_ip_out
+  changed_when: false
+
+- name: Set target IP fact
+  set_fact:
+    target_ip: "{{ live_guest_ip_out.stdout }}"
+
+- name: Generate and capture Helper Public Key
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    {{ Orchestrator_user }}@{{ helper_ip }}
+    "if [ ! -f ~/.ssh/id_rsa ]; then ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N '' ; fi; cat ~/.ssh/id_rsa.pub"
+  register: helper_pub_key_raw
+  changed_when: false
+
+- name: Clean Public Key Fact
+  set_fact:
+    # This grabs only the last line, ensuring we don't get the 'Generating...' text
+    clean_pub_key: "{{ helper_pub_key_raw.stdout_lines | last }}"
+
+- debug:
+    msg: |
+      key: "{{ clean_pub_key }}"
+  when: helper_pub_key_raw.stdout is defined
+
+- name: "Distribute Key to {{ guest_member }}"
+  shell: >
+    ssh -o StrictHostKeyChecking=no -i .ssh/id_rsa {{ Orchestrator_user }}@{{ target_ip }}
+    "mkdir -p ~/.ssh && chmod 700 ~/.ssh && 
+    (grep -Fq '{{ clean_pub_key }}' ~/.ssh/authorized_keys 2>/dev/null || 
+    echo '{{ clean_pub_key }}' >> ~/.ssh/authorized_keys) && 
+    chmod 600 ~/.ssh/authorized_keys"
+  register: key_dist_out
+
+- name: "Verify Connectivity from Orchestrator to {{ guest_member }}"
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    {{ Orchestrator_user }}@{{ helper_ip }}
+    "ping -c 3 {{ target_ip }} > /dev/null && 
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 
+    -o BatchMode=yes -o ConnectTimeout=5 
+    {{ Orchestrator_user }}@{{ target_ip }} 'true'"
+  register: connectivity_check
+  changed_when: false

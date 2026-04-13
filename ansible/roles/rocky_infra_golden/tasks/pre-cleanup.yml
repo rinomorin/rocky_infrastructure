@@ -1,0 +1,36 @@
+# tasks/pre-cleanup.yml
+
+- name: Identify all disks and backing files currently in use by Libvirt
+  shell: |
+    for vm in $(virsh list --all --name); do
+      # Get the active disk path
+      disk=$(virsh domblklist "$vm" --details | grep 'file' | awk '{print $4}')
+      [ -z "$disk" ] && continue
+      echo "$disk"
+      # Follow the chain to find the golden image it depends on
+      qemu-img info --backing-chain "$disk" 2>/dev/null | grep 'image:' | awk '{print $2}'
+    done | sort -u
+  register: active_disks
+  changed_when: false
+
+- name: Refresh Libvirt Storage Pool
+  command: "virsh pool-refresh {{ pool_name | default('default') }}"
+  changed_when: false
+
+- name: Get list of all volumes in pool
+  # NR>2 skips the virsh table headers to prevent 'Name' or '----' from being treated as files
+  shell: "virsh vol-list {{ pool_name | default('default') }} | awk 'NR>2 {print $1}'"
+  register: vol_list
+  changed_when: false
+
+- name: Remove orphaned Golden Images (File + XML)
+  command: "virsh vol-delete --pool {{ pool_name | default('default') }} {{ item }}"
+  loop: "{{ vol_list.stdout_lines }}"
+  vars:
+    full_path: "{{ image_path | default('/var/lib/libvirt/images') }}/{{ item }}"
+  when:
+    - "item is search('^gi-.*\\.qcow2$')"
+    - "full_path not in active_disks.stdout_lines"
+    - "item not in active_disks.stdout"
+  loop_control:
+    label: "Cleanup check for {{ item }}"

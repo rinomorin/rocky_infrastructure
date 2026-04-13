@@ -1,0 +1,119 @@
+---
+all:
+  vars:
+    # ansible_user: deploy_user
+    k8s_api_vip: "192.168.1.30"
+    vip_interface: "eth0"
+
+  hosts:
+    # Infrastructure Orchestrator
+    helper: 
+      ansible_host: 192.168.1.20 
+      hostname: helper.infra.example.com 
+      provider_ip: 192.168.1.20
+      provision_ip: 10.1.1.20 
+      ansible_user: core
+
+    # Load Balancers / Ingress
+    lb01:
+      ansible_user: core
+      ansible_host: 192.168.1.21
+      provision_ip: 10.1.1.21
+      node_ip: 10.1.1.21
+      hostname: lb01.cloud.example.com 
+      provider_ip: 192.168.1.21
+
+    lb02:
+      ansible_user: core
+      ansible_host: 192.168.1.22
+      provision_ip: 10.1.1.22
+      node_ip: 10.1.1.22 
+      hostname: lb02.cloud.example.com 
+      provider_ip: 192.168.1.22
+
+    # Kubernetes Control Plane
+    master01: 
+      ansible_user: core
+      ansible_host: 192.168.1.31 
+      hostname: master01.cloud.example.com 
+      provider_ip: 192.168.1.31 
+      provision_ip: 10.1.1.31
+      node_ip: 10.1.1.31
+      keepalived_state: MASTER
+      keepalived_priority: 200
+
+    master02: 
+      ansible_user: core
+      ansible_host: 192.168.1.32
+      hostname: master02.cloud.example.com 
+      provider_ip: 192.168.1.32
+      provision_ip: 10.1.1.32
+      node_ip: 10.1.1.32
+      keepalived_state: BACKUP
+      keepalived_priority: 150
+
+    # Kubernetes Workers
+    worker01: 
+      ansible_user: core
+      ansible_host: 10.1.1.41 
+      hostname: worker01.cloud.example.com 
+      provision_ip: 10.1.1.41
+      node_ip: 10.1.1.41
+
+    worker02: 
+      ansible_user: core
+      ansible_host: 10.1.1.42 
+      hostname: worker02.cloud.example.com 
+      provision_ip: 10.1.1.42
+      node_ip: 10.1.1.42
+
+    # Virtualization Hosts
+    kvmhost01:
+      ansible_host: 192.168.1.10
+      hostname: kvm01.infra.example.com
+      ansible_user: admin
+      
+    # Identity & Directory Services
+    idm01:
+      ansible_host: 192.168.1.11
+      ansible_user: core
+      hostname: idm01.infra.example.com
+
+    idm02:
+      ansible_host: 192.168.1.12
+      ansible_user: core
+      hostname: idm02.infra.example.com
+
+  children:
+    control_nodes:
+      hosts:
+        master01:
+        master02:
+
+    worker_nodes:
+      hosts:
+        worker01:
+        worker02:
+
+    infrastructure:
+      hosts:
+        kvmhost01:
+        idm01:
+        idm02:
+        helper:
+
+    ipa_servers:
+      hosts:
+        idm01:
+        idm02:
+
+    kvm:
+      hosts:
+        kvmhost01:
+          libvirt_networks:
+            - name: bridge-main
+              cidr: 192.168.1.0/24
+            - name: bridge-cluster
+              cidr: 10.1.1.0/24
+            - name: bridge-nat
+              cidr: 172.31.1.0/24

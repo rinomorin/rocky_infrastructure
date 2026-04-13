@@ -1,0 +1,15 @@
+---
+# defaults/main.yml
+helper_user: "{{ lookup('env', 'CLOUD_HELPER_USER') | default('core', true) }}"
+ansible_venv_path: "~/ansible_venv"
+
+# Use lookup to get the absolute path to the state file
+deployment_report_path: "{{ playbook_dir }}/../state/deployment_report.json"
+
+# List of all guests that need the SSH key
+target_guests: "{{ (groups['ipa_servers'] | default([]) + groups['helpers'] | default([])) | unique }}"
+
+# The specific helper node acting as the manager (taking the first one found)
+Orchestrator_host: "{{ groups['helpers'][0] }}"
+Orchestrator_user: "{{ hostvars[Orchestrator_host].ansible_user | default(helper_user) }}"
+cloud_zone: "{{ lookup('env', 'cloud_zone') | default('example.lan', true) }}"

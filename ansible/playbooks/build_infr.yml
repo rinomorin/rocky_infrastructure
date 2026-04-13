@@ -23,14 +23,6 @@
   roles:
     - role: rocky_infra_golden
 # 1. Prepare Environment
-- name: load environment
-  hosts: all
-  gather_facts: false
-  tasks:
-    - name: Now starting the Kubnet image
-      debug:
-        msg: "\n\n\n"
-
 - name: Build Kubernet Images
   vars:
     BUILD_PROFILE: "k8s"
@@ -38,6 +30,32 @@
   gather_facts: false
   roles:
     - role: rocky_infra_golden
+
+- name: KVM Image Factory - Clone Infrastructure & Helpers
+  hosts: kvm
+  become: true
+  gather_facts: true
+  vars:
+    # Combine groups and ensure we don't process a host twice if it's in both
+    target_guests: "{{ (groups['ipa_servers'] + groups['helpers']) | unique }}"
+  tasks:
+    - name: Trigger Cloning Role for each target guest
+      include_role:
+        name: rocky_server_deploy
+      loop: "{{ target_guests }}"
+      loop_control:
+        loop_var: guest_member
+
+- name: Pre Helper as new controller
+  hosts: kvm
+  gather_facts: false
+  vars:
+    # Combine groups and ensure we don't process a host twice if it's in both
+    target_guests: "{{ (groups['ipa_servers'] + groups['helpers']) | unique }}"
+  roles:
+    - role: rocky_helper_prep
+  
+#internal_cluster_ips: "{{ (groups['ipa_servers'] | difference(groups['helpers'])) | map('extract', hostvars, ['provision_ip']) | list }}"
 
 # - name: Build Golden Base Image
 #   hosts: kvm
