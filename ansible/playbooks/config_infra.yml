@@ -31,11 +31,9 @@
       changed_when: false # These commands check for updates every time
 
 - name: set ipa servers
-  vars:
-    BUILD_PROFILE: "infra"
   hosts: ipa_servers
   become: true
-  gather_facts: true
+  gather_facts: yes
   tasks:
     - name: Deploy IPA Servers
       include_role:
