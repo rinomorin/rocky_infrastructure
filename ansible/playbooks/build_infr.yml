@@ -31,9 +31,10 @@
     
     - name: check in groups
       vars:
+        thishost: "{{lookup('pipe', 'hostname -s')}"
         is_in: "{{lookup('pipe', 'hostname -s') in groups['all']}}"
       debug:
-        msg: "is in {{ is_in }}"
+        msg: "this host {{ thishost }}  in {{ is_in }}"
 
 
 # 1. Prepare Environment
