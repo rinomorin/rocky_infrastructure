@@ -31,18 +31,10 @@
       changed_when: false # These commands check for updates every time
 
 - name: Configure IPA Infrastructure
-  hosts: localhost
-  connection: local
+  hosts: ipa_servers,helpers
   gather_facts: true
-  tasks:
-    - name: Deploy IPA Servers
-      delegate_to: "{{ guest_member }}"
-      become: false
-      include_role:
-        name: rocky_ipa
-      vars:
-        # This tells the role which IP to actually talk to
-        ansible_host: "{{ hostvars[guest_member]['ansible_host'] | default(guest_member) }}"
-      loop: "{{ groups['ipa_servers'] | default([]) }}"
-      loop_control:
-        loop_var: guest_member
+  roles:
+    - role: rocky_ipa
+  
+
+  
