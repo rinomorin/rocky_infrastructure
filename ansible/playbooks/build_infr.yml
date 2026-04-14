@@ -2,6 +2,7 @@
 - name: "Deployment Guard: Block Managed Infrastructure"
   hosts: localhost
   connection: local
+  become: false
   gather_facts: false # We don't need facts if we are using shell
   tasks:
     - name: "Check if local hostname exists in the inventory file"
