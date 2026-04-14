@@ -27,11 +27,11 @@
     - name: "Terminate Execution"
       ansible.builtin.fail:
         msg: "Deployment halted for safety."
-      when: lookup('pipe', 'hostname -s') in groups['all']
+      when: lookup('env', '') in groups['all']
     
     - name: check in groups
       vars:
-        thishost: "{{lookup('pipe', 'hostname -s')}"
+        thishost: "{{lookup('pipe', 'HOSTNAME')}"
         is_in: "{{lookup('pipe', 'hostname -s') in groups['all']}}"
       debug:
         msg: "this host {{ thishost }}  in {{ is_in }}"
