@@ -31,7 +31,7 @@
     
     - name: check in groups
       vars:
-        is_in: lookup('pipe', 'hostname -s') in groups['all']
+        is_in: "{{lookup('pipe', 'hostname -s') in groups['all']}}"
       debug:
         msg: "is in {{ is_in }}"
 
