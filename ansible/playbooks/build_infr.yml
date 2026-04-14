@@ -4,6 +4,7 @@
   connection: local
   gather_facts: true
   tasks:
+    - debug: var=ansible_facts
     - name: "Validate that the current host is not a managed server"
       ansible.builtin.fail:
         msg: "SAFETY TRIGGERED: This host ({{ ansible_facts['default_ipv4']['address'] }}) is in the managed inventory."
