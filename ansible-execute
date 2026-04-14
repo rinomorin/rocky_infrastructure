@@ -30,7 +30,7 @@ ansible-pull -d "${DEST_DIR}" -U "${REPO_URL}" -C "${CHECKOUT}" --list-hosts 2>/
 
 
 # 2: Move to destination
-echo $(cd "${DEST_DIR}/ansible" || { echo "Failed to enter ${DEST_DIR}/ansible."; exit 1; })> /dev/null
+cd "${DEST_DIR}/ansible" || { echo "Failed to enter ${DEST_DIR}/ansible."; exit 1; }
 
 
 # 3: Source environment
