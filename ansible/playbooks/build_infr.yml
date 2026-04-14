@@ -27,7 +27,7 @@
     - name: "Terminate Execution"
       ansible.builtin.fail:
         msg: "Deployment halted for safety."
-      when: lookup('env', '') in groups['all']
+      when: lookup('pipe', 'hostname -s') in groups['all']
     
     - name: check in groups
       vars:
