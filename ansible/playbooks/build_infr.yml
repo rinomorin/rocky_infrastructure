@@ -11,14 +11,21 @@
       changed_when: false
 
     - name: "Validate Safety"
-      ansible.builtin.fail:
-        msg: <
+      debug:
+        msg:
           - "--------------------------------------------------------------------------"
           - "SAFETY TRIGGERED: The hostname was found in the inventory."
           - "Execution is blocked on managed infrastructure servers."
           - "Execution of this script is not allowed on infra or cloud systems."
           - "-------------------------------------------------------------------------"
       when: host_check.stdout | int > 0
+
+    - name: "Validate Safety"
+      ansible.builtin.fail:
+        msg: "Terminting..."
+
+      when: host_check.stdout | int > 0
+
 # 1. Prepare Environment
 - name: load environment
   hosts: all
