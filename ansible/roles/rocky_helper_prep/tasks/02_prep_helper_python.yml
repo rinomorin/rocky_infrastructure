@@ -165,3 +165,20 @@
     {{ Orchestrator_user }}@{{ helper_ip }} "echo '{{ local_key_content }}' >> ~/.ssh/authorized_keys"
   register: auth_update
   changed_when: auth_update.rc == 0
+
+- name: Test connectivity from local to Helper
+  become: false
+  delegate_to: localhost
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa \
+    {{ Orchestrator_user }}@{{ hostvars[Orchestrator_host].provider_ip }} "
+      sudo hostnamectl set-hostname {{ hostvars[Orchestrator_host].hostname }}"
+
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa \
+    {{ Orchestrator_user }}@{{ hostvars[Orchestrator_host].provider_ip }} "echo hello to {{ Orchestrator_user }} from \$(hostname)"
+  register: hello_helper
+
+- name: Test connectivity from Helper to local results
+  debug:
+    var: hello_helper.stdout
+
