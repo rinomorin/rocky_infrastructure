@@ -1,17 +1,15 @@
 ---
-- name: "Deployment Guard: Prevent execution from managed infrastructure"
+- name: "Deployment Guard: Block Managed Infrastructure"
   hosts: localhost
   connection: local
-  gather_facts: false
-  become: false
+  gather_facts: true
   tasks:
-    - name: "Check if we are running on the Helper node"
-      fail:
-        msg: |
-          SAFETY TRIGGERED: This playbook (build_infr.yml) is for initial bootstrapping only.
-          It cannot be executed from the Helper node or within the managed environment.
-          Please run this only from a local workstation during initial setup.
-      when: inventory_hostname in groups['all']
+    - name: "Validate that the current host is not in the inventory"
+      ansible.builtin.fail:
+        msg: "SAFETY TRIGGERED: This host ({{ ansible_default_ipv4.address }}) is a managed server. Execution blocked."
+      # This compares the real IP of the machine to the IPs listed in our inventory
+      when: ansible_default_ipv4.address in groups['all'] | map('extract', hostvars, 'ansible_host') | list
+
 
 # 1. Prepare Environment
 - name: load environment
