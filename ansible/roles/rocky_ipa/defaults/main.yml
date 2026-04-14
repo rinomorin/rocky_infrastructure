@@ -18,4 +18,3 @@ ipa_dns_zones:
     allow_query:
       - "any"
     allow_update: "{{ groups['ipa_servers'] | map('extract', hostvars, ['ansible_host']) | list }}"
-tes
