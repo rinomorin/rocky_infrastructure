@@ -19,7 +19,6 @@ done
 shift $((OPTIND-1))
 
 PLAYBOOK=$1
-echo "PLAYBOOK: $PLAYBOOK"
 
 if [ -z "$PLAYBOOK" ]; then
     echo "Error: No playbook specified."
@@ -27,26 +26,22 @@ if [ -z "$PLAYBOOK" ]; then
 fi
 
 # 1: Download/Sync only
-echo "--- Step 1: Syncing repository via ansible-pull (download only) ---"
 ansible-pull -d "${DEST_DIR}" -U "${REPO_URL}" -C "${CHECKOUT}" --list-hosts 2>/dev/null
 
 
 # 2: Move to destination
-cd "${DEST_DIR}/ansible" || { echo "Failed to enter ${DEST_DIR}/ansible."; exit 1; }
+echo $(cd "${DEST_DIR}/ansible" || { echo "Failed to enter ${DEST_DIR}/ansible."; exit 1; })> /dev/null
+
 
 # 3: Source environment
 if [ -d "${VENV_PATH}" ]; then
     echo "--- Step 3: Sourcing environment: ${VENV_PATH} ---"
     source "${VENV_PATH}/env_build.sh"
-else
-    echo "Warning: Virtualenv not found at ${VENV_PATH}. Proceeding with system python."
 fi
 
 # Ensure ANSIBLE_CONFIG is set if not already passed in the SSH string
 export ANSIBLE_CONFIG="${DEST_DIR}/ansible/ansible.cfg"
 
-pwd
-echo ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
 # 4: Run the actual playbook
 echo "--- Step 4: Executing ansible-playbook ---"
 ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS} 2>/dev/null
