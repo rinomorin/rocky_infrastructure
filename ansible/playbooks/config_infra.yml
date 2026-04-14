@@ -36,6 +36,8 @@
   gather_facts: true
   tasks:
     - name: Deploy IPA Servers
+      delegate_to: "{{ guest_member }}"
+      become: false
       include_role:
         name: rocky_ipa
       vars:
