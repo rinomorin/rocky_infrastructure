@@ -12,9 +12,11 @@
 
     - name: "Validate Safety"
       ansible.builtin.fail:
-        msg: |
-          SAFETY TRIGGERED: The hostname '$(hostname -s)' was found in the inventory.
-          Execution is blocked on managed infrastructure servers.
+        msg: 
+          - "SAFETY TRIGGERED: The hostname '$(hostname -s)' was found in the inventory.""
+          - "Execution is blocked on managed infrastructure servers."
+          - "Execution of this script is not allow on infra or cloud system"
+          
       # If grep count is greater than 0, we fail
       when: host_check.stdout | int > 0
 
