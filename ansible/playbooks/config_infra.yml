@@ -37,6 +37,8 @@
   tasks:
     - name: Deploy IPA Servers
       include_role:
-        - name: rocky_ipa
-      loop: ipa_severs
-      loop_control: "guest_member"
+        name: rocky_ipa
+      # Use the magic 'groups' variable to loop through the hosts in that group
+      loop: "{{ groups['ipa_servers'] }}"
+      loop_control:
+        loop_var: guest_member
