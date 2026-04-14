@@ -35,7 +35,7 @@ cd "${DEST_DIR}/ansible" || { echo "Failed to enter ${DEST_DIR}"; exit 1; }
 # 3: Source environment
 if [ -d "${VENV_PATH}" ]; then
     echo "--- Step 3: Sourcing environment: ${VENV_PATH} ---"
-    source "${VENV_PATH}/bin/activate"
+    source "${VENV_PATH}/env_build.sh"
 else
     echo "Warning: Virtualenv not found at ${VENV_PATH}. Proceeding with system python."
 fi
