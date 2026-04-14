@@ -162,6 +162,10 @@
   become: false
   shell: |
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa \
+    {{ Orchestrator_user }}@{{ hostvars[Orchestrator_host].provider_ip }} "
+      sudo mkdir /opt/ansible_work && sudo chmod 770  /opt/ansible_work && sudo chown core:core /opt/ansible_work"
+
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa \
     {{ Orchestrator_user }}@{{ helper_ip }} "echo '{{ local_key_content }}' >> ~/.ssh/authorized_keys"
   register: auth_update
   changed_when: auth_update.rc == 0
