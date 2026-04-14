@@ -2,19 +2,21 @@
 - name: "Deployment Guard: Block Managed Infrastructure"
   hosts: localhost
   connection: local
-  gather_facts: true
+  gather_facts: false # We don't need facts if we are using shell
   tasks:
-    - name: "Kill execution if host is in inventory"
+    - name: "Check if local hostname exists in the inventory file"
+      ansible.builtin.shell: |
+        grep -cw "$(hostname -s)" /home/core/deploy/inventory.yml
+      register: host_check
+      changed_when: false
+
+    - name: "Validate Safety"
       ansible.builtin.fail:
         msg: |
-          SAFETY TRIGGERED: This host is a managed server in the inventory.
-          Current IP: {{ ansible_facts['default_ipv4']['address'] }}
-          Current Hostname: {{ inventory_hostname }}
-          This playbook is blocked on managed infrastructure.
-      # Check if our IP or our inventory name is part of the 'all' group
-      when: 
-        - (ansible_facts['default_ipv4']['address'] in groups['all']) or 
-          (inventory_hostname in groups['all'])
+          SAFETY TRIGGERED: The hostname '$(hostname -s)' was found in the inventory.
+          Execution is blocked on managed infrastructure servers.
+      # If grep count is greater than 0, we fail
+      when: host_check.stdout | int > 0
 
 # 1. Prepare Environment
 - name: load environment
