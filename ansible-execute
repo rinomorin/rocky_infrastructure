@@ -49,4 +49,4 @@ pwd
 echo ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
 # 4: Run the actual playbook
 echo "--- Step 4: Executing ansible-playbook ---"
-ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
+ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS} 2>/dev/null
