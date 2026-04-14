@@ -28,6 +28,13 @@
       ansible.builtin.fail:
         msg: "Deployment halted for safety."
       when: lookup('pipe', 'hostname -s') in groups['all']
+    
+    - name: check in groups
+      vars:
+        is_in: lookup('pipe', 'hostname -s') in groups['all']
+      debug:
+        msg: "is in {{ is_in }}"
+
 
 # 1. Prepare Environment
 - name: load environment
