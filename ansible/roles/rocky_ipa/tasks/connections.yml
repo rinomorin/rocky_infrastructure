@@ -1,0 +1,10 @@
+---
+- name: Test connectivity from local to Helper
+  shell: >
+    whoami && hostname
+  register: whoami
+  changed_when: false
+
+- name: Test connectivity from Helper to local results
+  debug:
+    var: whoami.stdout

@@ -202,21 +202,21 @@
                     "cidr": "10.0.0.0/24",
                     "devname": "enp2s0",
                     "ip": "10.0.0.20",
-                    "mac": "52:54:00:db:34:b0",
+                    "mac": "52:54:00:8a:04:63",
                     "name": "br-cluster"
                 },
                 "br-nat": {
                     "cidr": "172.16.0.0/24",
                     "devname": "enp1s0",
                     "ip": "DHCP",
-                    "mac": "52:54:00:65:32:de",
+                    "mac": "52:54:00:10:6c:d3",
                     "name": "br-nat"
                 },
                 "default": {
                     "cidr": "192.168.100.0/24",
                     "devname": "enp3s0",
                     "ip": "192.168.100.20",
-                    "mac": "52:54:00:0a:ed:5a",
+                    "mac": "N/A",
                     "name": "default"
                 }
             },
@@ -226,7 +226,7 @@
             "profile": "k8s",
             "provider_ip": "192.168.100.20",
             "provision_ip": "10.0.0.20",
-            "reachable_ip": "172.16.0.150"
+            "reachable_ip": "172.16.0.137"
         },
         "ipa01": {
             "cidr": "192.168.100.0/24",

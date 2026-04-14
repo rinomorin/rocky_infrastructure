@@ -1,0 +1,32 @@
+# 1. Prepare Environment
+- name: load environment
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Ensure latest stable collections are installed on controller
+      delegate_to: localhost
+      become: false
+      run_once: true
+      command: "ansible-galaxy collection install {{ item }} --upgrade"
+      loop:
+        - community.general
+        - ansible.posix
+        - kubernetes.core  # Highly recommended for your FCOS/K8s work
+      changed_when: false # These commands check for updates every time
+
+- name: set ipa servers
+  vars:
+    BUILD_PROFILE: "infra"
+  hosts: ipa_servers
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Deploy IPA Servers
+      vars:
+      # Combine groups and ensure we don't process a host twice if it's in both
+        target_guests: "{{ (groups['ipa_servers'] + groups['helpers']) | unique }}"
+      include_role:
+        - name: rocky_ipa
+      loop: "{{ guest_member }}"
+      loop_control:
+        loop_var: target_guests

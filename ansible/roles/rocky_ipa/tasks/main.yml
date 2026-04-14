@@ -1,0 +1,4 @@
+---
+- name: test our connections on {{ guest_member}}
+  import_tasks: connections.yml
+  
