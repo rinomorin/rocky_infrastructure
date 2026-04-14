@@ -31,7 +31,7 @@
       changed_when: false # These commands check for updates every time
 
 - name: Configure IPA Infrastructure
-  hosts: ipa_servers
+  hosts: ipa
   gather_facts: true
   serial: 1
   roles:
