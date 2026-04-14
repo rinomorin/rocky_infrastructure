@@ -30,7 +30,7 @@ echo "--- Step 1: Syncing repository via ansible-pull (download only) ---"
 ansible-pull -d "${DEST_DIR}" -U "${REPO_URL}" -C "${CHECKOUT}" --list-hosts
 
 # 2: Move to destination
-cd "${DEST_DIR}/ansible" || { echo "Failed to enter ${DEST_DIR}"; exit 1; }
+cd "${DEST_DIR}/ansible" || { echo "Failed to enter ${DEST_DIR}/ansible."; exit 1; }
 
 # 3: Source environment
 if [ -d "${VENV_PATH}" ]; then
@@ -43,6 +43,8 @@ fi
 # Ensure ANSIBLE_CONFIG is set if not already passed in the SSH string
 export ANSIBLE_CONFIG="${DEST_DIR}/ansible/ansible.cfg"
 
+pwd
+echo ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
 # 4: Run the actual playbook
 echo "--- Step 4: Executing ansible-playbook ---"
-ansible-playbook -i "${INVENTORY}" "playbooks/${PLAYBOOK}" ${EXTRA_VARS}
+ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
