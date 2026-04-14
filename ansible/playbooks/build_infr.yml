@@ -6,10 +6,10 @@
   tasks:
     - name: "Validate that the current host is not in the inventory"
       ansible.builtin.fail:
-        msg: "SAFETY TRIGGERED: This host ({{ ansible_default_ipv4.address }}) is a managed server. Execution blocked."
-      # This compares the real IP of the machine to the IPs listed in our inventory
-      when: ansible_default_ipv4.address in groups['all'] | map('extract', hostvars, 'ansible_host') | list
-
+        msg: "SAFETY TRIGGERED: This host is in the managed inventory list."
+      when: 
+        - (ansible_facts['default_ipv4']['address'] in groups['all']) or 
+          (inventory_hostname in groups['all'])
 
 # 1. Prepare Environment
 - name: load environment
