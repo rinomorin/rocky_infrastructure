@@ -2,14 +2,17 @@
 - name: "Deployment Guard: Block Managed Infrastructure"
   hosts: localhost
   connection: local
-  become: false
-  gather_facts: false # We don't need facts if we are using shell
+  gather_facts: false 
   tasks:
-    - name: "Check if local hostname exists in the inventory file"
-      ansible.builtin.shell: |
-        grep -cw "$(hostname -s)" {{ inventory_file }}
-      register: host_check
-      changed_when: false
+    - name: "Validate Safety"
+      debug:
+        msg:
+          - "--------------------------------------------------------------------------"
+          - "SAFETY TRIGGERED: The hostname '{{ lookup('pipe', 'hostname -s') }}' was found in the inventory."
+          - "Execution is blocked on managed infrastructure servers."
+          - "--------------------------------------------------------------------------"
+      # This checks if our actual short hostname is a member of the 'all' group
+      when: lookup('pipe', 'hostname -s') in groups['all']
 
     - name: "Validate Safety"
       debug:
@@ -19,12 +22,12 @@
           - "Execution is blocked on managed infrastructure servers."
           - "Execution of this script is not allowed on infra or cloud systems."
           - "-------------------------------------------------------------------------"
-      when: host_check.stdout | int > 0
+      when: lookup('pipe', 'hostname -s') in groups['all']
 
     - name: "Terminate Execution"
       ansible.builtin.fail:
         msg: "Deployment halted for safety."
-      when: host_check.stdout | int > 0
+      when: lookup('pipe', 'hostname -s') in groups['all']
 
 # 1. Prepare Environment
 - name: load environment
