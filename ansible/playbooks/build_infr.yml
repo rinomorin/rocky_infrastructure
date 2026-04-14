@@ -4,12 +4,12 @@
   connection: local
   gather_facts: true
   tasks:
-    - name: "Validate that the current host is not in the inventory"
+    - name: "Validate that the current host is not a managed server"
       ansible.builtin.fail:
-        msg: "SAFETY TRIGGERED: This host is in the managed inventory list."
-      when: 
-        - (ansible_facts['default_ipv4']['address'] in groups['all']) or 
-          (inventory_hostname in groups['all'])
+        msg: "SAFETY TRIGGERED: This host ({{ ansible_facts['default_ipv4']['address'] }}) is in the managed inventory."
+      # This checks if our real IP is mentioned anywhere in the 'all' group
+      when: ansible_facts['default_ipv4']['address'] in groups['all'] | map('extract', hostvars, 'ansible_host') | list
+      ignore_errors: false
 
 # 1. Prepare Environment
 - name: load environment
