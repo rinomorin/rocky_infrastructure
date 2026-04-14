@@ -57,6 +57,25 @@
                 "k8s": "1.34"
             }
         },
+        "gi-infra-10-20260413": {
+            "build_date": "20260413",
+            "login": {
+                "ssh_key_path": "~/.ssh/id_rsa.pub",
+                "user": "cloud_helper"
+            },
+            "name": "gi-infra-10-20260413",
+            "os_variant": "10",
+            "profile": "infra",
+            "specs": {
+                "cpu": 2,
+                "disk": 40,
+                "ram": 4096
+            },
+            "versions": {
+                "crio": "1.34",
+                "k8s": "1.34"
+            }
+        },
         "gi-k8s-9-20260410": {
             "build_date": "20260410",
             "login": {
@@ -113,6 +132,25 @@
                 "crio": "1.34",
                 "k8s": "1.34"
             }
+        },
+        "gi-k8s-9-20260413": {
+            "build_date": "20260413",
+            "login": {
+                "ssh_key_path": "~/.ssh/id_rsa.pub",
+                "user": "cloud_helper"
+            },
+            "name": "gi-k8s-9-20260413",
+            "os_variant": "9",
+            "profile": "k8s",
+            "specs": {
+                "cpu": 4,
+                "disk": 60,
+                "ram": 8192
+            },
+            "versions": {
+                "crio": "1.34",
+                "k8s": "1.34"
+            }
         }
     },
     "infrastructure": {
@@ -120,7 +158,7 @@
             "cidr": "172.16.0.0/24",
             "fqdn": "helper.home.morinsoft.ca",
             "gateway": "172.16.0.1",
-            "image": "gi-k8s-9-20260412.qcow2",
+            "image": "gi-k8s-9-20260413.qcow2",
             "interfaces": {
                 "br-cluster": {
                     "cidr": "10.0.0.0/24",
@@ -156,7 +194,7 @@
             "cidr": "192.168.100.0/24",
             "fqdn": "ipa01.home.morinsoft.ca",
             "gateway": "192.168.100.1",
-            "image": "gi-infra-10-20260412.qcow2",
+            "image": "gi-infra-10-20260413.qcow2",
             "interfaces": {
                 "br-cluster": {
                     "cidr": "10.0.0.0/24",
@@ -190,7 +228,7 @@
             "cidr": "192.168.100.0/24",
             "fqdn": "ipa02.home.morinsoft.ca",
             "gateway": "192.168.100.1",
-            "image": "gi-infra-10-20260412.qcow2",
+            "image": "gi-infra-10-20260413.qcow2",
             "interfaces": {
                 "br-cluster": {
                     "cidr": "10.0.0.0/24",

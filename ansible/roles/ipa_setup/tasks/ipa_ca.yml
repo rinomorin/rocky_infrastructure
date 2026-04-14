@@ -1,0 +1,226 @@
+# --- Detect if IPA is already configured ---
+- name: Check if IPA default.conf exists
+  stat:
+    path: /etc/ipa/default.conf
+  register: ipa_conf
+
+# --- Install only if not configured ---
+- name: Configure IPA CA server (this can takes a while - 10 min+)
+  become: yes
+  shell: |
+    umask 022 && ipa-server-install \
+      --unattended \
+      --domain={{ ipa_domain | lower }} \
+      --realm={{ ipa_domain | upper }} \
+      --ds-password='{{ ipa_dm_password }}' \
+      --admin-password='{{ ipa_admin_password }}' \
+      --setup-adtrust \
+      --setup-kra \
+      --hostname={{ vm_fqdn }} \
+      --auto-reverse \
+      --auto-forwarders \
+      --setup-dns
+  when: not ipa_conf.stat.exists
+  no_log: true
+
+- name: create certs from cacert.p12
+  become: yes
+  shell: |
+    # Extract only the private key
+    openssl pkcs12 -in /root/cacert.p12 -nocerts -nodes -out /root/serverkey.pem -clcerts -passin pass:{{ ipa_dm_password }}
+    # Extract only the certificate
+    openssl pkcs12 -in /root/cacert.p12 -clcerts -nokeys -out /root/servercert.pem -passin pass:{{ ipa_dm_password }}
+  no_log: true
+
+- name: copy ca.crt to trusted
+  become: yes
+  shell: |
+    cp /etc/ipa/ca.crt /etc/pki/ca-trust/source/anchors/
+    update-ca-trust
+
+- name: Acquire Kerberos ticket for host principal
+  command: kinit -kt /etc/krb5.keytab "host/{{ vm_fqdn }}@{{ ipa_domain | upper }}"
+  register: kinit_result
+  changed_when: false
+  failed_when: kinit_result.rc != 0
+
+# --- Service checks ---
+- name: Check IPA related services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+  loop:
+    - ipa.service
+    - "dirsrv@{{ ipa_domain | upper }}"
+    - krb5kdc.service
+    - kadmin.service
+    - pki-tomcatd@pki-tomcat.service
+    - named-pkcs11.service
+  register: ipa_services
+  ignore_errors: true
+
+- name: Show IPA service states
+  debug:
+    var: ipa_services.results
+
+# --- IPA config check ---
+- name: Verify IPA config
+  command: ipa config-show
+  register: ipa_config
+  changed_when: false
+  failed_when: ipa_config.rc != 0
+  when: ipa_conf.stat.exists
+
+# --- CA certificate validation ---
+- name: Check CA certificate
+  stat:
+    path: /etc/ipa/ca.crt
+  register: ca_cert
+
+- name: Validate CA certificate
+  command: openssl x509 -in /etc/ipa/ca.crt -noout -text
+  when: ca_cert.stat.exists
+  changed_when: false
+
+# --- DNS zone check ---
+- name: Verify DNS zones
+  command: ipa dnszone-find
+  register: dns_zones
+  changed_when: false
+  when: ipa_conf.stat.exists
+
+# -- check on IPA CA
+- name: run klist
+  become: yes
+  shell: |
+    kinit -kt /etc/krb5.keytab "host/$(hostname -f)@{{ ipa_domain | upper }}"
+    klist
+  register: kcerts
+
+- name: get ca.crt Info
+  shell: "openssl x509 -in /etc/ipa/ca.crt -noout -text"
+  register: ca_cert_info
+
+- name: test ldap 389
+  shell: "ldapsearch -x -H ldap://localhost:389 -b \"dc=$(hostname -d | sed 's/\\./,dc=/g')\""
+  register: ldap_389
+
+- name: show ldap 389
+  debug:
+    msg: "{{ ldap_389.stdout }}"
+
+- name: test ldaps 636
+  shell: "ldapsearch -H ldaps://localhost:636 -D \"cn=Directory Manager\" -w {{ ipa_dm_password }} -b \"\" -s base \"(objectclass=*)\""
+  register: ldaps_636
+  no_log: true
+
+- name: show ldaps 636
+  debug:
+    msg: "{{ ldaps_636.stdout }}"
+
+- name: test dns
+  shell: "dig @127.0.0.1 {{ ipa_master }}.$(hostname -d)"
+  register: dns_test
+
+- name: show dns
+  debug:
+    msg: "{{ dns_test.stdout }}"
+
+- name: Verify Kerberos kinit with admin password
+  expect:
+    command: kinit admin@{{ ipa_domain | upper }}
+    responses:
+      '(?i)Password for admin.*': "{{ ipa_admin_password }}"
+  register: kinit_check
+  changed_when: false
+  no_log: true
+
+# --- Forward and reverse DNS records ---
+- name: Add A record for {{ ipa_master }}
+  become: yes
+  command: >
+    ipa dnsrecord-add {{ ipa_domain }} {{ ipa_master }} --a-rec={{ ipa_master_ip }}
+  register: add_host_record
+  changed_when: "'record already exists' not in add_host_record.stdout"
+  failed_when: false
+ 
+- name: Ensure forward A record for ipa_ca_intermediate
+  become: yes
+  command: >
+    ipa dnsrecord-add {{ ipa_domain }} {{ ipa_ca_intermediate }} --a-rec={{ ipa_ca_intermediate_ip }}
+  register: add_a_intermediate
+  changed_when: "'already exists' not in add_a_intermediate.stdout"
+  failed_when: false
+
+- name: Ensure forward A record for ipa_helper
+  become: yes
+  command: >
+    ipa dnsrecord-add {{ ipa_domain }} {{ ipa_helper }} --a-rec={{ ipa_helper_ip }}
+  register: add_a_helper
+  changed_when: "'already exists' not in add_a_helper.stdout"
+  failed_when: false
+
+- name: Add A record for {{ ipa_domain }} (zone apex)
+  become: yes
+  command: >
+    ipa dnsrecord-add {{ ipa_domain }} @ --a-rec={{ ipa_master_ip }}.
+  register: add_domain_record
+  changed_when: "'record already exists' not in add_domain_record.stdout"
+  failed_when: false
+
+- name: Verify forward DNS resolution for domain
+  shell: dig +short {{ ipa_domain }} @{{ ipa_master_ip }}
+  register: forward_domain
+
+- name: Verify {{ ipa_ca_intermediate }} forward DNS
+  command: dig +short {{ ipa_ca_intermediate }}.{{ ipa_domain }} @{{ ipa_master_ip }}
+  register: forward_check
+  changed_when: false
+  failed_when: forward_check.stdout == ""
+
+- name: Show DNS validation results
+  debug:
+    msg:
+      - "Forward lookup {{ ipa_ca_intermediate }}: {{ forward_check.stdout }}"
+
+- name: Ensure PTR record for {{ ipa_master }}
+  become: yes
+  command: >
+    ipa dnsrecord-add {{ ipa_master_ip.split('.')[:-1] | reverse | join('.') }}.in-addr.arpa
+    {{ ipa_master_ip.split('.')[-1] }}
+    --ptr-rec={{ ipa_master }}.{{ ipa_domain }}.
+  register: add_ptr
+  changed_when: "'record already exists' not in add_ptr.stdout"
+  failed_when: false
+
+- name: Ensure {{ ipa_ca_intermediate }} reverse PTR record
+  become: yes
+  command: >
+    ipa dnsrecord-add {{ ipa_ca_intermediate_ip.split('.')[:-1] | reverse | join('.') }}.in-addr.arpa
+    {{ ipa_ca_intermediate_ip.split('.')[-1] }} 
+    --ptr-rec={{ ipa_ca_intermediate }}.{{ ipa_domain }}.
+  register: add_ptr_intermediate
+  changed_when: "'record already exists' not in add_ptr_intermediate.stdout"
+  failed_when: false
+
+- name: Ensure {{ ipa_helper }} reverse PTR record
+  become: yes
+  command: >
+    ipa dnsrecord-add {{ ipa_helper_ip.split('.')[:-1] | reverse | join('.') }}.in-addr.arpa
+    {{ ipa_helper_ip.split('.')[-1] }} 
+    --ptr-rec={{ ipa_helper }}.{{ ipa_domain }}.
+  register: add_prt_helper_ip
+  changed_when: "'record already exists' not in add_ptr_intermediate.stdout"
+  failed_when: false
+
+
+- name: show add_ptr_intermediate
+  debug:
+    msg: "{{ add_ptr_intermediate }}"
+
+- name: Verify reverse DNS resolution
+  shell: dig +short -x {{ ipa_master_ip }} @{{ ipa_master_ip }}
+  register: reverse_dns
+
+- name: Verify reverse DNS resolution intermediate
+  shell: dig +short -x {{ ipa_ca_intermediate_ip }} @{{ ipa_master_ip }}
+  register: reverse_dns2

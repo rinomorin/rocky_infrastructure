@@ -14,6 +14,7 @@
       {{ 
         (guest_check.stdout == 'notfound') or 
         (reclone | default([]) == 'all') or 
+        (force_new_image | default([]) == True ) or
         (guest_member in (reclone | default([]))) 
       }}
 

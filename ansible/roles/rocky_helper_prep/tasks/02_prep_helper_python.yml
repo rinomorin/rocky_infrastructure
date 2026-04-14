@@ -1,0 +1,167 @@
+---
+- name: "Install Python 3.12 and Venv on Helper via KVM"
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    {{ Orchestrator_user }}@{{ helper_ip }}
+    "sudo dnf install -y python3.12 python3.12-pip python3.12-devel && 
+    python3.12 -m venv ~/deploy/venv && 
+    ~/deploy/venv/bin/pip install --upgrade pip setuptools wheel && 
+    ~/deploy/venv/bin/pip install ansible ansible-core jmespath"
+  register: python_setup
+  changed_when: "'Successfully installed' in python_setup.stdout"
+
+- name: "Install Ansible Collections on Helper via KVM"
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    {{ Orchestrator_user }}@{{ helper_ip }}
+    "~/deploy/venv/bin/ansible-galaxy collection install community.general"
+  register: collection_setup
+  changed_when: "'was installed successfully' in collection_setup.stdout"
+
+- name: "Verify Helper Environment"
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    {{ Orchestrator_user }}@{{ helper_ip }}
+    "~/deploy/venv/bin/ansible --version"
+  register: ansible_version_check
+  changed_when: false
+
+- name: "Display Helper Ansible Version"
+  debug:
+    var: ansible_version_check.stdout_lines[0]
+
+- name: "Add venv activation to .bashrc on Helper via KVM"
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    {{ Orchestrator_user }}@{{ helper_ip }}
+    "grep -q 'deploy/venv/bin/activate' ~/.bashrc || 
+    echo 'source ~/deploy/venv/bin/activate' >> ~/.bashrc"
+  register: bashrc_update
+  changed_when: bashrc_update.rc == 0
+
+- name: "Add Ansible aliases to .bashrc on Helper via KVM"
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    {{ Orchestrator_user }}@{{ helper_ip }}
+    "grep -q 'alias ans=' ~/.bashrc || 
+    echo \"alias ans='ansible-playbook'\" >> ~/.bashrc"
+  register: alias_update
+  changed_when: alias_update.rc == 0
+
+- name: "Verify .bashrc persistence"
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    {{ Orchestrator_user }}@{{ helper_ip }}
+    "tail -n 5 ~/.bashrc"
+  register: bashrc_check
+  changed_when: false
+
+- name: "Show Helper .bashrc tail"
+  debug:
+    var: bashrc_check.stdout_lines
+
+- name: "Configure SSH client settings on Helper"
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    {{ Orchestrator_user }}@{{ helper_ip }}
+    "printf 'Host *\n    StrictHostKeyChecking no\n    UserKnownHostsFile /dev/null\n    LogLevel ERROR\n' > ~/.ssh/config && 
+    chmod 600 ~/.ssh/config"
+
+- name: "Install Controller Support Tools"
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    {{ Orchestrator_user }}@{{ helper_ip }}
+    "sudo dnf install -y git rsync sshpass jq"
+
+- name: "Step 1: Stage inventory.yml on KVM temporarily"
+  copy:
+    src: "{{ playbook_dir }}/../inventory.yml"
+    dest: "/tmp/inventory.yml"
+    mode: '0600'
+
+- name: "Step 1: Stage env_build on KVM temporarily"
+  copy:
+    src: "{{ playbook_dir }}/../../env_build.sh"
+    dest: "/tmp/env_build.sh"
+    mode: '0600'
+
+- name: "Step 2: Push from KVM to Helper"
+  shell: >
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    /tmp/inventory.yml {{ Orchestrator_user }}@{{ helper_ip }}:~/deploy/inventory.yml
+  register: helper_transfer
+
+- name: "Step 2: Push from KVM to Helper"
+  shell: >
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    /tmp/env_build.sh {{ Orchestrator_user }}@{{ helper_ip }}:~/env_build.sh
+  register: env_transfer
+
+- name: "Step 3: Securely delete inventory from KVM"
+  file:
+    path: "/tmp/inventory.yml"
+    state: absent
+  when: helper_transfer.rc == 0
+
+- name: "Step 3: Securely delete inventory from KVM"
+  file:
+    path: "/tmp/inventory.yml"
+    state: absent
+  when: env_transfer.rc == 0
+
+- name: "Final Check: Verify file exists on Helper"
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    {{ Orchestrator_user }}@{{ helper_ip }} "ls -l ~/deploy/inventory.yml"
+  register: final_verify
+  changed_when: false
+
+- name: "Report Success"
+  debug:
+    msg: "Inventory successfully moved to Helper and purged from KVM bridge."
+
+- name: "Apply Global Safety Net Config to Helper (~/.ansible.cfg)"
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    {{ Orchestrator_user }}@{{ helper_ip }}
+    "printf '[defaults]\n
+    inventory = ~/deploy/inventory.yml\n
+    roles_path = roles:../roles\n
+    host_key_checking = False\n
+    retry_files_enabled = False\n
+    stdout_callback = yaml\n
+    interpreter_python = auto_silent\n
+    forks = 20\n' > ~/.ansible.cfg"
+  changed_when: true
+
+- name: "Verify Global Config Pathing"
+  shell: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
+    {{ Orchestrator_user }}@{{ helper_ip }}
+    "ansible-config dump | grep -E 'DEFAULT_ROLES_PATH|DEFAULT_HOST_LIST'"
+  register: config_verify
+  changed_when: false
+
+- name: "Debug Final Helper Configuration"
+  debug:
+    var: config_verify.stdout_lines
+
+- name: Verify who is running this script
+  debug:
+    msg: "I am running as user: {{ lookup('env', 'USER') }}"
+  delegate_to: localhost
+  become: false
+
+- name: Get my local id_rsa key
+  set_fact:
+    local_key_content: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+  delegate_to: localhost
+  become: false
+
+- name: Add to Helper authorized_keys file
+  become: false
+  shell: |
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa \
+    {{ Orchestrator_user }}@{{ helper_ip }} "echo '{{ local_key_content }}' >> ~/.ssh/authorized_keys"
+  register: auth_update
+  changed_when: auth_update.rc == 0

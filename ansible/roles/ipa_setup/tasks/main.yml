@@ -1,0 +1,87 @@
+# role/ipa_setup/tasks/main.yml
+- name: set ipa systems (masters)
+  set_fact:
+    ipa_master: "{{ groups['ca'][0] }}"
+    ipa_master_ip: "{{ hostvars[groups['ca'][0]].ansible_host }}"
+    ipa_ca_intermediate: "{{ groups['ca_intermediate'][0] }}"
+    ipa_ca_intermediate_ip: "{{ hostvars[groups['ca_intermediate'][0]].ansible_host }}"
+    ipa_helper: "{{ groups['helpers'][0] }}"
+    ipa_helper_ip: "{{ hostvars[groups['helpers'][0]].ansible_host }}"
+    vm_build_stage: "{{ vm_build_state }}"
+  run_once: true
+  delegate_to: localhost
+
+- name: Check if ipa-server package is installed
+  become: yes
+  shell: "rpm -q ipa-server || true"
+  register: ipa_pkg
+  changed_when: false
+  when:
+    - "'ca' in group_names or 'ca_intermediate' in group_names"
+
+- name: Import IPA status check tasks
+  import_tasks: check_ipa.yml
+  when:
+    - "'ca' in group_names or 'ca_intermediate' in group_names"
+    - ipa_pkg.stdout is not search("not installed")
+
+- name: set ipa ca
+  block:
+    - name: current IPA 
+      debug: 
+        msg: |
+          {{ inventory_hostname }} ipa_role is {{ ipa_role }}
+          {{ group_names }}
+
+    - name: Include install.yml
+      import_tasks: install.yml
+
+    - name: configure ipa ca
+      import_tasks: ipa_ca.yml
+  when: 
+    - "'ca' in group_names"
+    - vm_build_state in ["scanned","non-compliant","compliant"]
+
+# role/ipa_setup/tasks/main.yml
+- name: set ipa ca_intermediate
+  block:
+    - name: Addin IPA 
+      debug: msg="{{ inventory_hostname }} ipa_role is intermediate"
+
+    - name: Include install.yml
+      import_tasks: install.yml
+
+    - name: Prep for ca intermediate
+      import_tasks: ipa_ca_intermediate.yml
+
+    - name: define intermediate
+      import_tasks: intermediate.yml
+      vars:
+        ca_name: "ca_home"
+        ca_subject: "intermediate CA"
+        ca_description: "Intermediate CA for issuing service certs"
+
+  when: 
+    - "'ca_intermediate' in group_names"
+    - vm_build_state in ["scanned","non-compliant","compliant"]
+
+- name: define intermediate
+  import_tasks: intermediate.yml
+  vars:
+    ca_name: "ca_home"
+    ca_subject: "intermediate CA"
+    ca_description: "Intermediate CA for issuing service certs"
+  when: 
+    - "'ca' in group_names or 'ca_intermediate' in group_names"
+    - vm_build_stage in ["scanned", "non-compliant", "compliant"]
+
+- name: Secure final ipa host
+  import_tasks: secops.yml
+  when: 
+    - "'ca' in group_names or 'ca_intermediate' in group_names"
+    - vm_build_stage in ["scanned", "non-compliant", "compliant"]
+  
+- name: update global_vm_build_state
+  set_fact:
+    global_vm_build_state: "{{ vm_build_stage }}"
+    vm_build_state: "{{ vm_build_stage }}"

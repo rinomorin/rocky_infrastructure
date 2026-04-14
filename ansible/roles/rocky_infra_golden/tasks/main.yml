@@ -59,8 +59,12 @@
   import_tasks: 01_wait_for_shutdown.yml
   when: not skip_factory
 
+# - name: Securet the golden image
+#   include_tasks: 02_secure_golden.yml
+#   # when: not skip_factory
+
 - name: Determine if Sysprep is required
-  include_tasks: 02_sysprep.yml
+  include_tasks: 03_sysprep.yml
   when: not skip_factory
 
 - name: "Ensure ownership for golden images"

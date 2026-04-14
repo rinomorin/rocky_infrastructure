@@ -1,4 +1,18 @@
 ---
+- name: "Deployment Guard: Prevent execution from managed infrastructure"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: "Check if we are running on the Helper node"
+      fail:
+        msg: |
+          SAFETY TRIGGERED: This playbook (build_infr.yml) is for initial bootstrapping only.
+          It cannot be executed from the Helper node or within the managed environment.
+          Please run this only from a local workstation during initial setup.
+      when: inventory_hostname in groups['all']
+
 # 1. Prepare Environment
 - name: load environment
   hosts: all

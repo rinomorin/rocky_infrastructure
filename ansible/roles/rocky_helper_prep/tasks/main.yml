@@ -22,8 +22,9 @@
   loop: "{{ target_guests }}"
   loop_control:
         loop_var: guest_member
-# - name: Build Python Environment
-#   import_tasks: 02_prep_helper_python.yml
+- name: Build Python Environment
+  import_tasks: 02_prep_helper_python.yml
+
 
 # - name: Verify Orchestrator
 #   import_tasks: 03_verify_orchestrator.yml

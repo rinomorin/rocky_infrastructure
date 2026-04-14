@@ -1,0 +1,112 @@
+# roles/ipa/tasks/intermediate_ca.yml
+# ---
+- name: Check if intermediate CA exists
+  command: ipa ca-show {{ ca_name }}
+  delegate_to: localhost
+  run_once: true
+  become: false
+  register: ca_exists
+  failed_when: false
+  changed_when: false
+
+- name: Create intermediate CA entry
+  command: >
+    ipa ca-add {{ ca_name }}
+    --subject="CN={{ ca_subject }},O={{ ipa_domain | upper }}"
+    --description="{{ ca_description }}"
+  delegate_to: localhost
+  run_once: true
+  become: false
+  register: ca_add_result
+  when: ca_exists.rc != 0
+  changed_when: "'added' in ca_add_result.stdout"
+
+- name: Verify all CAs
+  command: ipa ca-find
+  delegate_to: localhost
+  run_once: true
+  become: false
+  register: ca_list
+
+- name: Dump intermediate CA details
+  command: ipa ca-show {{ ca_name }}
+  delegate_to: localhost
+  run_once: true
+  become: false
+  register: ca_show
+
+- name: Save CA certificate chain for audit
+  copy:
+    dest: "{{ workDir }}/{{ ca_name }}_ca_info.txt"
+    content: |
+      === CA List ===
+      {{ ca_list.stdout }}
+      === CA Details ===
+      {{ ca_show.stdout }}
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+# --- Test certificate issuance ---
+- name: Generate CSR for test certificate
+  community.crypto.openssl_csr:
+    path: "{{ workDir }}/test.csr"
+    privatekey_path: "{{ workDir }}/test.key"
+    common_name: "test.{{ ipa_domain | lower }}"
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Request certificate from intermediate CA
+  command: >
+    ipa cert-request --ca={{ ca_name }} {{ workDir }}/test.csr
+  delegate_to: localhost
+  run_once: true
+  become: false
+  register: cert_request
+
+- name: Save issued certificate
+  copy:
+    dest: "{{ workDir }}/test_cert.pem"
+    content: "{{ cert_request.stdout }}"
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+# --- Validation against trust chain ---
+- name: Save root CA certificate
+  copy:
+    src: /etc/ipa/ca.crt
+    dest: "{{ workDir }}/root_ca.crt"
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Extract intermediate CA certificate
+  command: >
+    ipa ca-show {{ ca_name }} --out={{ workDir }}/intermediate_ca.crt
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Build full chain file
+  shell: cat {{ workDir }}/test_cert.pem {{ workDir }}/intermediate_ca.crt {{ workDir }}/root_ca.crt > {{ workDir }}/full_chain.pem
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Validate certificate against chain
+  command: >
+    openssl verify -CAfile {{ workDir }}/full_chain.pem {{ workDir }}/test_cert.pem
+  delegate_to: localhost
+  run_once: true
+  become: false
+  register: cert_verify
+
+- name: Save validation result
+  copy:
+    dest: "{{ workDir }}/{{ ca_name }}_validation.txt"
+    content: "{{ cert_verify.stdout }}"
+  delegate_to: localhost
+  run_once: true
+  become: false

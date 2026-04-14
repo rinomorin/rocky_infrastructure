@@ -1,0 +1,158 @@
+
+- name: Only sshuser allowed
+  become: yes
+  copy:
+    dest: /etc/ssh/sshd_config.d/allowssh.conf
+    content: |
+      AllowGroups sshusers
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Restart sshd
+  ansible.builtin.systemd:
+    name: sshd
+    state: restarted
+
+- name: Configure faillock
+  copy:
+    dest: /etc/security/faillock.conf
+    content: |
+      deny = 5
+      unlock_time = 900
+      even_deny_root
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Mask autofs service
+  ansible.builtin.systemd:
+    name: autofs
+    state: stopped
+    enabled: false
+    masked: true
+
+- name: authselect updates
+  become: yes
+  shell: |
+    authselect select sssd with-faillock with-pwhistory
+    authselect apply-changes
+
+- name: load and set password info
+  set_fact:
+    max_pass: "{{ lookup('env','passwd_max_days', default=30) }}"
+    min_pass: "{{ lookup('env','passwd_min_days', default=1) }}"
+    warn_pass: "{{ lookup('env','passwd_warn_age', default=14) }}"
+
+- name: Secure password expiry in login.defs
+  become: yes
+  shell: |
+    # set default umask
+    sed -i 's/^UMASK.*$/UMASK 077/' /etc/login.defs
+
+    # set password age parameters
+    sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS {{ max_pass }}/' /etc/login.defs
+    sed -i 's/^PASS_MIN_DAYS.*/PASS_MIN_DAYS  {{ min_pass }}/' /etc/login.defs
+    sed -i 's/^PASS_WARN_AGE.*/PASS_WARN_AGE {{ warn_pass }}/' /etc/login.defs
+  args:
+    executable: /bin/bash
+  register: pam_stuff
+
+- name: Get list of users with UID > 999
+  command: |
+    awk -F: '($3>999 && $3!=65534 ){print $1}' /etc/passwd
+  register: user_list
+  changed_when: false
+
+- name: Set password aging for users
+  become: yes
+  command: chage -M {{ max_pass }} -m {{ min_pass }} -W {{ warn_pass }} {{ item }}
+  loop: "{{ user_list.stdout_lines }}"
+  register: pass_chage
+
+
+#  this is optional, i do plan to change later
+#  --skip-rule xccdf_org.ssgproject.content_rule_accounts_password_last_change_is_in_past 
+- name: reset password
+  become: yes
+  shell: |
+    echo "{{ secops_id}}:{{ secops_pwd }}"|chpasswd
+    echo "{{ admin_id}}:{{ admin_set }}"|chpasswd
+  no_log: true
+
+- name: reboot after ipa install
+  reboot:
+    msg: "Rebooting after IPA securing"
+    pre_reboot_delay: 10
+    reboot_timeout: 600
+    post_reboot_delay: 30
+  when: 
+    - "'ca' in group_names or 'ca_intermediate' in group_names"
+
+- name: Run ca oscap scan (remediate)
+  ignore_errors: true
+  failed_when: false
+  become: yes
+  shell: |
+    /usr/bin/oscap xccdf eval \
+    --profile xccdf_org.ssgproject.content_profile_cis \
+    --report /root/rocky9-cis2-report3.html \
+    --skip-rule xccdf_org.ssgproject.content_rule_sudo_require_authentication \
+    --skip-rule xccdf_org.ssgproject.content_rule_grub2_password \
+    --skip-rule xccdf_org.ssgproject.content_rule_package_bind_removed \
+    --skip-rule xccdf_org.ssgproject.content_rule_package_httpd_removed \
+    --skip-rule xccdf_org.ssgproject.content_rule_package_openldap-clients_removed \
+    --skip-rule xccdf_org.ssgproject.content_rule_service_rpcbind_disabled \
+    --skip-rule xccdf_org.ssgproject.content_rule_service_nfs_disabled \
+    --skip-rule xccdf_org.ssgproject.content_rule_sshd_disable_gssapi_auth \
+    --skip-rule xccdf_org.ssgproject.content_rule_no_empty_passwords \
+    --skip-rule xccdf_org.ssgproject.content_rule_package_samba_removed \
+    --skip-rule  xccdf_org.ssgproject.content_rule_audit_rules_privileged_commands \
+    --skip-rule xccdf_org.ssgproject.content_rule_accounts_password_last_change_is_in_past 
+    --report /tmp/{{ inventory_hostname_short }}-cis2-report.html \
+    --remediate \
+    /usr/share/xml/scap/ssg/content/ssg-rl9-ds.xml > /var/log/oscap.log
+  args:
+    executable: /bin/bash
+  when: "'ca' in group_names or 'ca_intermediate' in group_names"
+
+- name: Run CA oscap scan (scan)
+  become: yes
+  register: oscap_scan
+  shell: |
+    /usr/bin/oscap xccdf eval \
+      --profile xccdf_org.ssgproject.content_profile_cis \
+      --report /tmp/{{ inventory_hostname_short }}-cis2-report.html \
+      --skip-rule xccdf_org.ssgproject.content_rule_sudo_require_authentication \
+      --skip-rule xccdf_org.ssgproject.content_rule_grub2_password \
+      --skip-rule xccdf_org.ssgproject.content_rule_package_bind_removed \
+      --skip-rule xccdf_org.ssgproject.content_rule_package_httpd_removed \
+      --skip-rule xccdf_org.ssgproject.content_rule_package_openldap-clients_removed \
+      --skip-rule xccdf_org.ssgproject.content_rule_service_rpcbind_disabled \
+      --skip-rule xccdf_org.ssgproject.content_rule_service_nfs_disabled \
+      --skip-rule xccdf_org.ssgproject.content_rule_sshd_disable_gssapi_auth \
+      --skip-rule xccdf_org.ssgproject.content_rule_no_empty_passwords \
+      --skip-rule xccdf_org.ssgproject.content_rule_package_samba_removed \
+      --skip-rule xccdf_org.ssgproject.content_rule_audit_rules_privileged_commands \
+      --skip-rule xccdf_org.ssgproject.content_rule_accounts_password_last_change_is_in_past \
+      /usr/share/xml/scap/ssg/content/ssg-rl9-ds.xml
+  args:
+    executable: /bin/bash
+  failed_when: false
+  when: "'ca' in group_names or 'ca_intermediate' in group_names"
+
+- name: Save scan logs
+  copy:
+    dest: /var/log/oscap.log
+    content: |
+      {{ oscap_scan.stdout | default('') }}
+      {{ oscap_scan.stderr | default('') }}
+    force: yes
+  when: oscap_scan is defined
+
+- name: update ipa state
+  set_fact:
+    vm_build_state: "ready"
+  when: 
+    - "'ca' in group_names or 'ca_intermediate' in group_names"
+    - oscap_scan is defined  

@@ -38,6 +38,15 @@
     chmod 600 ~/.ssh/authorized_keys"
   register: key_dist_out
 
+- name: "Authorize Helper Key on KVM Host (secops)"
+  become: false
+  shell: |
+    mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    grep -q "{{ clean_pub_key }}" ~/.ssh/authorized_keys 2>/dev/null || echo "{{ clean_pub_key }}" >> ~/.ssh/authorized_keys
+    chmod 600 ~/.ssh/authorized_keys
+  register: kvm_dist_out
+  # This runs directly on the KVM host as secops
+
 - name: "Verify Connectivity from Orchestrator to {{ guest_member }}"
   shell: >
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
