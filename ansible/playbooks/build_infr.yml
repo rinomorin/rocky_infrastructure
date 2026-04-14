@@ -7,7 +7,7 @@
   tasks:
     - name: "Check if local hostname exists in the inventory file"
       ansible.builtin.shell: |
-        grep -cw "$(hostname -s)" /home/core/deploy/inventory.yml
+        grep -cw "$(hostname -s)" {{ inventory_file }}
       register: host_check
       changed_when: false
 
