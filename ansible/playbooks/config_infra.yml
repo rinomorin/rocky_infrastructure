@@ -40,6 +40,5 @@
     - name: Deploy IPA Servers
       include_role:
         - name: rocky_ipa
-      loop: "{{ guest_member }}"
-      loop_control:
-        loop_var: ipa_severs
+      loop: ipa_severs
+      loop_control: guest_member
