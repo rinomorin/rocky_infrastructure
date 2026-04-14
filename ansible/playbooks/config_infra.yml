@@ -30,12 +30,17 @@
         - kubernetes.core  # Highly recommended for your FCOS/K8s work
       changed_when: false # These commands check for updates every time
 
-- name: Deploy IPA Servers
-  include_role:
-    name: rocky_ipa
-  vars:
-    # Pass the current loop item as the target for the role's tasks
-    ansible_host: "{{ hostvars[guest_member]['ansible_host'] }}"
-  loop: "{{ groups['ipa_servers'] }}"
-  loop_control:
-    loop_var: guest_member
+- name: Configure IPA Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Deploy IPA Servers
+      include_role:
+        name: rocky_ipa
+      vars:
+        # This tells the role which IP to actually talk to
+        ansible_host: "{{ hostvars[guest_member]['ansible_host'] | default(guest_member) }}"
+      loop: "{{ groups['ipa_servers'] | default([]) }}"
+      loop_control:
+        loop_var: guest_member
