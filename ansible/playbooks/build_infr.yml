@@ -10,14 +10,14 @@
       register: host_check
       changed_when: false
 
-    - name: "Display Safety Message"
+    - name: "Validate Safety"
       debug:
-        msg: |
-          --------------------------------------------------------------------------
-          SAFETY TRIGGERED: The hostname was found in the inventory.
-          Execution is blocked on managed infrastructure servers.
-          Execution of this script is not allowed on infra or cloud systems.
-          --------------------------------------------------------------------------
+        msg:
+          - "--------------------------------------------------------------------------"
+          - "SAFETY TRIGGERED: The hostname was found in the inventory."
+          - "Execution is blocked on managed infrastructure servers."
+          - "Execution of this script is not allowed on infra or cloud systems."
+          - "-------------------------------------------------------------------------"
       when: host_check.stdout | int > 0
 
     - name: "Terminate Execution"
