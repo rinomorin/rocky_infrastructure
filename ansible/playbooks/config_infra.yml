@@ -41,4 +41,4 @@
       include_role:
         - name: rocky_ipa
       loop: ipa_severs
-      loop_control: guest_member
+      loop_control: "guest_member"
