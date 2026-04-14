@@ -10,20 +10,19 @@
       register: host_check
       changed_when: false
 
-    - name: "Validate Safety"
+    - name: "Display Safety Message"
       debug:
-        msg:
-          - "--------------------------------------------------------------------------"
-          - "SAFETY TRIGGERED: The hostname was found in the inventory."
-          - "Execution is blocked on managed infrastructure servers."
-          - "Execution of this script is not allowed on infra or cloud systems."
-          - "-------------------------------------------------------------------------"
+        msg: |
+          --------------------------------------------------------------------------
+          SAFETY TRIGGERED: The hostname was found in the inventory.
+          Execution is blocked on managed infrastructure servers.
+          Execution of this script is not allowed on infra or cloud systems.
+          --------------------------------------------------------------------------
       when: host_check.stdout | int > 0
 
-    - name: "Validate Safety"
+    - name: "Terminate Execution"
       ansible.builtin.fail:
-        msg: "Terminting..."
-
+        msg: "Deployment halted for safety."
       when: host_check.stdout | int > 0
 
 # 1. Prepare Environment
