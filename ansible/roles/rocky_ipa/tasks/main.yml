@@ -5,7 +5,9 @@
 - name: Check IPA status
   import_tasks: check_status.yml
   
-
-
+- name: What is check_status
+  debug:
+    var: ipa_stage
+  
 
   
