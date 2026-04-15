@@ -13,4 +13,11 @@
       - "type {{ipa_type}}"
   
 
+- name: process stage
+  block:
+
+  - name: install rpm
+    import_tasks: install_ipa.yml
+    when: ipa_stage == 'required'
+
   
