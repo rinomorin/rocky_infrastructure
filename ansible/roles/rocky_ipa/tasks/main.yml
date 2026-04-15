@@ -8,8 +8,8 @@
 - name: What is check_status
   debug:
     msg: 
-      - ipa_stat
-      - ipa_type
+      - "{{ipa_stat}}"
+      - "{{ipa_type}}"
   
 
   
