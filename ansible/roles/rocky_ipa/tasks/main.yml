@@ -7,7 +7,7 @@
   
 - name: What is check_status
   debug:
-    var: 
+    msg: 
       - ipa_stat
       - ipa_type
   
