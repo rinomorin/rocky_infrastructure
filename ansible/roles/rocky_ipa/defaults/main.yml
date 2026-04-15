@@ -1,5 +1,6 @@
 # role/ipa_setup/defaults/main.yml
 ipa_stat: "initial"
+ipa_type: "{{ hostvars[ guest_member].cluster_role}}"
 is_ipa_pkg: False
 ipa_role: master         # Options: master, replica
 ipa_domain: "{{ lookup('env', 'ipa_domain') |lower}}"
