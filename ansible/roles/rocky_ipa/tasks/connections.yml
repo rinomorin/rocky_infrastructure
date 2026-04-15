@@ -8,3 +8,4 @@
 - name: Test connectivity from Helper to local results
   debug:
     var: whoami.stdout
+

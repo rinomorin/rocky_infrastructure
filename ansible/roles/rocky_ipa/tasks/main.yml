@@ -2,3 +2,10 @@
 - name: test our connections on {{ guest_member}}
   import_tasks: connections.yml
   
+- name: Check IPA status
+  import_tasks: check_status.yml
+  
+
+
+
+  
