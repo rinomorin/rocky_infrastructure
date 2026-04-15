@@ -1,5 +1,5 @@
 ---
-- name: test our connections on {{ guest_member}}
+- name: test our connections on {{ guest_member }}
   import_tasks: connections.yml
   
 - name: Check IPA status
@@ -8,8 +8,9 @@
 - name: What is check_status
   debug:
     msg: |
-      - "{{ipa_stage}}"
-      - "{{ipa_type}}"
+      - "host {{ inventory_hostname }}"
+      - "stage {{ipa_stage}}"
+      - "type {{ipa_type}}"
   
 
   
