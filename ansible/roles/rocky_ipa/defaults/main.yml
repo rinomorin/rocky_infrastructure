@@ -1,6 +1,6 @@
 # role/ipa_setup/defaults/main.yml
 ipa_stat: "initial"
-ipa_type: "{{ hostvars[ inventory_hostname ].cluster_role}}"
+ipa_type: "{{ hostvars[inventory_hostname]['cluster_role'] | default('client') }}"
 is_ipa_pkg: False
 ipa_role: master         # Options: master, replica
 ipa_domain: "{{ lookup('env', 'ipa_domain') |lower}}"
