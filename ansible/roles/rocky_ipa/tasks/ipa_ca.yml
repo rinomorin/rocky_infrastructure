@@ -43,7 +43,7 @@
     - ipa_stage == 'unconfigured'
 
 # --- STAGE 2: DNS INJECTION (PRE-INSTALL) ---
-- name: Ensure DNS Records exist for installation
+- name: Ensure DNS Records exist for installation  {{ inventory_hostname.split('.')[0] }} @ {{ ansible_host }}
   become: true
   ansible.builtin.shell: |
     echo '{{ ipa_admin_password }}' | kinit admin && \
