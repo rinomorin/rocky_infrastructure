@@ -3,80 +3,54 @@
 - name: Enforce IPA DNS Resolution
   become: yes
   block:
-    - name: "DNS Prep - Test Master DNS Response from {{ ipa_master }} @ {{ ipa_master_ip }}"
-      # We test if the MASTER is responding to DNS queries before we switch
-      ansible.builtin.command: "nslookup {{ ipa_master }} {{ ipa_master_ip }}"
-      register: dns_test
+    - name: "DNS Prep - Identify Active Interface Name"
+      ansible.builtin.shell: "nmcli -t -f NAME connection show --active | head -n 1"
+      register: active_conn_name
       changed_when: false
-      ignore_errors: yes
 
-    - name: DNS Prep - Set Persistent DNS via nmcli
-      community.general.nmcli:
-        conn_name: "Wired connection 1"
-        # Use dns4 and dns4_search for IPv4 compatibility
-        dns4:
-          - "{{ ipa_master_ip }}"
-        dns4_search:
-          - "{{ ipa_domain }}"
-        state: present
-      register: nmcli_update
+    - name: "DNS Prep - Test Connectivity to Master IP"
+      # We test ping first to make sure .10 is even alive
+      ansible.builtin.command: "ping -c 1 {{ ipa_master_ip }}"
+      changed_when: false
 
-    - name: DNS Prep - Apply Network Changes
-      ansible.builtin.shell: "nmcli connection up 'Wired connection 1' && systemctl restart NetworkManager"
-      when: nmcli_update is changed
-
-    # --- STAGE 2: DNS INJECTION (PRE-INSTALL) ---
-    - name: Ensure DNS Records exist for installation
-      # This runs ON the master to add the replica's record
+    - name: "DNS Prep - Configure DNS via NMCLI Shell"
+      # We force 'ipv4.ignore-auto-dns yes' so DHCP doesn't overwrite us
       ansible.builtin.shell: |
-        echo '{{ ipa_admin_password }}' | kinit admin && \
-        ipa dnsrecord-add {{ ipa_domain }} {{ inventory_hostname.split('.')[0] }} --a-rec={{ ansible_host }}
-      delegate_to: "{{ ipa_master_ip }}"
-      register: dns_injection_out
-      failed_when: 
-        - dns_injection_out.rc != 0 
-        - "'already exists' not in dns_injection_out.stderr"
-      no_log: true
-      
-  # Matches your discovery facts for helper, ipa02, etc.
-  when: ipa_type in ['member', 'client', 'replica'] and ipa_stage == 'unconfigured'
+        nmcli connection modify "{{ active_conn_name.stdout }}" \
+        ipv4.dns "{{ ipa_master_ip }}" \
+        ipv4.dns-search "{{ ipa_domain }}" \
+        ipv4.ignore-auto-dns yes && \
+        nmcli connection up "{{ active_conn_name.stdout }}"
+      register: dns_result
+      # Only run if we aren't the Master
+      when: ansible_host != ipa_master_ip
 
-# --- STAGE 1: PRE-FLIGHT VALIDATION ---
-- name: Verify Environment Readiness
-  block:
-    - name: "Replica: Validate Connectivity to Primary Master (via IP)"
-      ansible.builtin.wait_for:
-        host: "{{ ipa_master_ip }}" # Using IP as per your request
-        port: "{{ item.port }}"
-        timeout: 10
-        msg: "Cannot reach Primary IPA on port {{ item.port }} ({{ item.name }})"
-      loop:
-        - { name: 'LDAP', port: 389 }
-        - { name: 'LDAPS', port: 636 }
-        - { name: 'Kerberos KDC', port: 88 }
-        - { name: 'Dogtag/HTTPS', port: 443 }
-      when: ipa_role == 'member'
+    - name: "DNS Prep - Verify Resolution"
+      # Now nslookup should work because we pointed it to the Master
+      ansible.builtin.command: "nslookup {{ ipa_master_fqdn }}"
+      changed_when: false
+      when: dns_result is changed
 
-    - name: "Replica: Check Dogtag (PKI) Service Status (via FQDN)"
-      ansible.builtin.uri:
-        url: "https://{{ ipa_master }}/ca/ee/ca/checkStatus" # Testing DNS here
-        validate_certs: no
-        status_code: 200
-      register: dogtag_check
-      when: ipa_role == 'member'
-
-  when: ipa_stage == 'unconfigured'
+  # Run on everything that isn't the primary master
+  when: 
+    - ansible_host != ipa_master_ip
+    - ipa_stage == 'unconfigured'
 
 # --- STAGE 2: DNS INJECTION (PRE-INSTALL) ---
 - name: Ensure DNS Records exist for installation
-  ansible.builtin.command: >
-    ipa dnsrecord-add {{ ipa_domain }} {{ inventory_hostname_short }} --a-rec={{ ansible_host }}
-  delegate_to: "{{ ipa_master }}"
-  remote_user: admin
+  become: true
+  ansible.builtin.shell: |
+    echo '{{ ipa_admin_password }}' | kinit admin && \
+    ipa dnsrecord-add {{ ipa_domain }} {{ inventory_hostname.split('.')[0] }} --a-rec={{ ansible_host }}
+  delegate_to: "{{ ipa_master_ip }}"
   when: 
-    - ipa_role == 'replica'
+    - ipa_type == 'replica'
     - ipa_stage == 'unconfigured'
-  failed_when: false # Prevent failure if record already exists
+  register: dns_injection_out
+  failed_when: 
+    - dns_injection_out.rc != 0 
+    - "'already exists' not in dns_injection_out.stderr"
+  no_log: true
 
 # --- STAGE 3: INSTALLATION LOGIC ---
 - name: Check variables

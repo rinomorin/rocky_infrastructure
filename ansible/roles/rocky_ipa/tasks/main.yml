@@ -1,55 +1,56 @@
 ---
-# --- STAGE 0: NETWORK & RESOLUTION PREP ---
-- name: Enforce IPA DNS Resolution
-  become: yes
+- name: Configure IPA Infrastructure
+  hosts: all
+  pre_tasks:
+    - name: Pin IPA Master Details
+      set_fact:
+        # Force the master to be the first host in the 'ipa' group
+        ipa_master_fqdn: "{{ hostvars[groups['ipa'][0]]['hostname'] }}"
+        ipa_master_ip: "{{ hostvars[groups['ipa'][0]]['ansible_host'] }}"
+      run_once: true # Ensures this is calculated once and shared
+      
+- name: test our connections on {{ guest_member }}
+  import_tasks: connections.yml
+  
+- name: Check IPA status
+  import_tasks: check_status.yml
+  
+- name: What is check_status
+  debug:
+    msg: |
+      - "host {{ inventory_hostname }}"
+      - "stage {{ipa_stage}}"
+      - "type {{ipa_type}}"
+  
+- name: Initial, Health & Recovery Self-healing
   block:
-    - name: "DNS Prep - Identify Active Interface Name"
-      ansible.builtin.shell: "nmcli -t -f NAME connection show --active | head -n 1"
-      register: active_conn_name
-      changed_when: false
 
-    - name: "DNS Prep - Test Connectivity to Master IP"
-      ansible.builtin.command: "ping -c 1 {{ ipa_master_ip }}"
-      changed_when: false
+  # --- STAGE 1: Install RPMs & Prepare ---
+  - name: Process Stage 1 - Installation
+    import_tasks: install_ipa.yml
+    when: ipa_stage == 'required'
 
-    - name: "DNS Prep - Configure DNS via NMCLI Shell"
-      # We force 'ipv4.ignore-auto-dns yes' so DHCP doesn't overwrite us
-      ansible.builtin.shell: |
-        nmcli connection modify "{{ active_conn_name.stdout }}" \
-        ipv4.dns "{{ ipa_master_ip }}" \
-        ipv4.dns-search "{{ ipa_domain }}" \
-        ipv4.ignore-auto-dns yes && \
-        nmcli connection up "{{ active_conn_name.stdout }}"
-      register: dns_result
-      # Only run if we aren't the Master
-      when: ansible_host != ipa_master_ip
+  - name: Dynamic Re-check
+    ansible.builtin.include_tasks: check_status.yml
+    when: ipa_install_result.changed | bool
 
-    - name: "DNS Prep - Verify Resolution"
-      # Now nslookup should work because we pointed it to the Master
-      ansible.builtin.command: "nslookup {{ ipa_master_fqdn }}"
-      changed_when: false
-      when: dns_result is changed
+  - debug:
+      msg: "ipa_stage {{ipa_stage}} and ipa_type {{ipa_type}}"
 
-  # Run on everything that isn't the primary master
-  when: 
-    - ansible_host != ipa_master_ip
-    - ipa_stage == 'unconfigured'
-
-# --- STAGE 2: DNS INJECTION (PRE-INSTALL) ---
-- name: Ensure DNS Records exist for installation
-  become: true
-  ansible.builtin.shell: |
-    echo '{{ ipa_admin_password }}' | kinit admin && \
-    ipa dnsrecord-add {{ ipa_domain }} {{ inventory_hostname.split('.')[0] }} --a-rec={{ ansible_host }}
-  delegate_to: "{{ ipa_master_ip }}"
-  when: 
-    - ipa_type == 'replica'
-    - ipa_stage == 'unconfigured'
-  register: dns_injection_out
-  failed_when: 
-    - dns_injection_out.rc != 0 
-    - "'already exists' not in dns_injection_out.stderr"
-  no_log: true
+  - name: Process Stage 2 - Primary host Configuration
+    import_tasks: ipa_ca.yml
+    vars:
+      ipa_domain: "{{ lookup('env', 'ipa_domain') |lower}}"
+      ipa_realm:  "{{ lookup('env', 'ipa_domain') |upper}}"
+      ipa_dm_password: "{{ lookup('env', 'ipa_dm_password')}}"
+      ipa_admin_password: "{{ lookup('env', 'ipa_admin_password')}}"
+      ipa_master: "{{ hostvars[inventory_hostname].hostname | default( lookup('env', 'ipa_master')) }}"
+      ipa_master_ip: "{{ hostvars[inventory_hostname].ansible_host | default( lookup('env', 'ipa_master_ip'))}}"
+      ca_hostname: "{{ hostvars[inventory_hostname].hostname | default( lookup('env', 'ipa_master'))}}"
+      ipa_role: "{{ ipa_type }}"
+    when: 
+      - ipa_stage == 'unconfigured'
+      - ipa_type in ('primary', 'master','replica')
 
 
   #   # --- STAGE 3 & 4: Self-Healing & Maintenance ---
