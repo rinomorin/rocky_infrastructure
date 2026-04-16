@@ -40,13 +40,9 @@ if [ -d "${DEST_DIR}/venv" ]; then
 else
     echo "--- Step 3: Sourcing environment: ${DEST_DIR}/env_build.sh"
 fi
-echo source "${DEST_DIR}/ansible/temp.txt"
-source "${DEST_DIR}/ansible/temp.txt"
 # Ensure ANSIBLE_CONFIG is set if not already passed in the SSH string
 export ANSIBLE_CONFIG="${DEST_DIR}/ansible/ansible.cfg"
 # pwd  && echo ${PLAYBOOK}
 # 4: Run the actual playbook
-env|grep ipa_
 echo "--- Step 4: Executing ansible-playbook ---"
 ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
-env|grep ipa_
