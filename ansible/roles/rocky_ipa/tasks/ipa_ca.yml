@@ -117,11 +117,12 @@
       --hostname={{ ca_hostname }} \
       --setup-ca \
       --setup-dns \
+      --no-forwarders \
       --no-host-dns
   register: ipa_replica_out
   when: 
     - ipa_stage == 'unconfigured'
-    - ipa_role == 'replica'
+    - ipa_type == 'replica' # Ensuring this matches your debug output
 
 # --- STAGE 4: RECOVERY & HEALTH VERIFICATION ---
 - name: Post-Config / Weekly Health Verification
