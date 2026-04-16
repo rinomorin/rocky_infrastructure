@@ -6,6 +6,7 @@ VENV_PATH="{$HOME}/deploy/venv"
 
 # Parse options
 while getopts "d:i:U:C:v:e:" opt; do
+  echo "opt: $opt"
   case $opt in
     d) DEST_DIR="$OPTARG" ;;
     i) INVENTORY="$OPTARG" ;;
@@ -47,5 +48,5 @@ export ANSIBLE_CONFIG="${DEST_DIR}/ansible/ansible.cfg"
 echo "--- Step 4: Executing ansible-playbook ---"
 ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
 echo ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
-echo "${EXTRA_VARS}"
+echo "EXTRA_VARS: ${EXTRA_VARS}"
 
