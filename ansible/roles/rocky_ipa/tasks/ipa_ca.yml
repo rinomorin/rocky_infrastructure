@@ -27,7 +27,7 @@
       changed_when: false
 
     - name: Acquire Kerberos ticket for host principal
-      ansible.builtin.command: kinit -kt /etc/krb5.keytab "host/{{ hostname }}@{{ ipa_domain | upper }}"
+      ansible.builtin.command: kinit -kt /etc/krb5.keytab "host/{{ ca_hostname }}| upper }}"
       changed_when: false
 
     - name: Audit IPA related services (Systemd)
@@ -59,7 +59,7 @@
       changed_when: false
 
     - name: Test DNS Resolution (Internal)
-      ansible.builtin.shell: "dig +short @127.0.0.1 {{ hostname }}"
+      ansible.builtin.shell: "dig +short @127.0.0.1 {{ ca_hostname }}"
       register: dns_test
       failed_when: dns_test.stdout == ""
       changed_when: false
