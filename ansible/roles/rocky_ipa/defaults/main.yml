@@ -1,9 +1,11 @@
 # role/ipa_setup/defaults/main.yml
 ipa_stat: "initial"
-ipa_type: "{{ hostvars[inventory_hostname]['cluster_role'] | default('client') }}"
 is_ipa_pkg: False
-ipa_master: "{{ lookup('env', 'ipa_,aster') | lower }}"
-ipa_role: master         # Options: master, replica
+ipa_type: "{{ hostvars[inventory_hostname]['cluster_role'] | default('client') }}"
+ipa_master_host: "{{ groups['all'] | select('extract', hostvars, 'cluster_role') | select('equalto', 'primary') | first }}"
+ipa_master: "{{ hostvars[ipa_master_host]['inventory_hostname'] }}"
+ipa_master_ip: "{{ hostvars[ipa_master_host]['ansible_host'] }}"
+ipa_role: "{{ ipa_type }}"
 ipa_hostname: "{{ ansible_fqdn }}"
 ipa_setup_dns: true
 ipa_setup_ca: true       # Set false for replica unless promoting CA

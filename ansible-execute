@@ -29,10 +29,8 @@ fi
 # 1: Download/Sync only
 ansible-pull -d "${DEST_DIR}" -U "${REPO_URL}" -C "${CHECKOUT}" --list-hosts 2>/dev/null
 
-
 # 2: Move to destination
 cd "${DEST_DIR}/ansible" || { echo "Failed to enter ${DEST_DIR}/ansible."; exit 1; }
-
 
 # 3: Source environment
 if [ -d "${HOME}/deploy/venv" ]; then
@@ -43,14 +41,9 @@ else
 fi
 source "${DEST_DIR}/env_build.sh"
 
-
 # Ensure ANSIBLE_CONFIG is set if not already passed in the SSH string
 export ANSIBLE_CONFIG="${DEST_DIR}/ansible/ansible.cfg"
 # pwd  && echo ${PLAYBOOK}
 # 4: Run the actual playbook
 echo "--- Step 4: Executing ansible-playbook ---"
 ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
-echo ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
-echo "EXTRA_VARS: ${EXTRA_VARS}"
-env|grep ipa_
-echo source "${DEST_DIR}/env_build.sh"
