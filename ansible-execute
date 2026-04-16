@@ -6,7 +6,7 @@ VENV_PATH="{$HOME}/deploy/venv"
 
 # Parse options
 while getopts "d:i:U:C:v:e:" opt; do
-  echo "opt: $opt"
+  echo "opt: $opt = $OPTARG"
   case $opt in
     d) DEST_DIR="$OPTARG" ;;
     i) INVENTORY="$OPTARG" ;;
