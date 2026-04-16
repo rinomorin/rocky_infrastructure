@@ -47,4 +47,4 @@ export ANSIBLE_CONFIG="${DEST_DIR}/ansible/ansible.cfg"
 echo "--- Step 4: Executing ansible-playbook ---"
 ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
 
-env
+env|grep ipa_
