@@ -12,37 +12,19 @@
       - "stage {{ipa_stage}}"
       - "type {{ipa_type}}"
   
-- name: process stages
+- name: Initial, Health & Recovery Self-healing
   block:
 
-  - name: install rpm
+  # --- STAGE 1: Install RPMs & Prepare ---
+  - name: Process Stage 1 - Installation
     import_tasks: install_ipa.yml
     when: ipa_stage == 'required'
 
-  - name: configure ipa server
+  - name: Process Stage 2 - Primary host Configuration
     import_tasks: ipa_ca.yml
     when: 
       - ipa_stage == 'unconfigured'
       - ipa_type in ('primary', 'master')
-
-  
-  ---
-- name: Identify Current State
-  ansible.builtin.import_tasks: check_status.yml
-
-- name: Initial, Health & Recovery Self-healing
-  block:
-    # --- STAGE 1: Install RPMs & Prepare ---
-    - name: Process Stage 1 - Installation
-      ansible.builtin.import_tasks: install_ipa.yml
-      when: ipa_stage == "required"
-
-    # --- STAGE 2: Configure Server/Member ---
-    - name: Process Stage 2 - Configuration
-      ansible.builtin.import_tasks: ipa_ca.yml
-      when: 
-        - ipa_stage == "unconfigured"
-        - ipa_type in ['primary', 'master']
 
   #   # --- STAGE 3 & 4: Self-Healing & Maintenance ---
   #   - name: Self-healing - Ensure Services are Running
