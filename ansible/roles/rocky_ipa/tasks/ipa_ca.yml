@@ -56,7 +56,7 @@
   failed_when: 
     - dns_injection_out.rc != 0 
     - "'already exists' not in dns_injection_out.stderr"
-  no_log: true
+  # no_log: true
 
 # --- STAGE 3: INSTALLATION LOGIC ---
 - name: Check variables
