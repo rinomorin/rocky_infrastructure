@@ -1,13 +1,10 @@
 ---
-- name: Configure IPA Infrastructure
-  hosts: all
-  pre_tasks:
-    - name: Pin IPA Master Details
-      set_fact:
-        # Force the master to be the first host in the 'ipa' group
-        ipa_master_fqdn: "{{ hostvars[groups['ipa'][0]]['hostname'] }}"
-        ipa_master_ip: "{{ hostvars[groups['ipa'][0]]['ansible_host'] }}"
-      run_once: true # Ensures this is calculated once and shared
+- name: Pin IPA Master Details
+  set_fact:
+    # Force the master to be the first host in the 'ipa' group
+    ipa_master_fqdn: "{{ hostvars[groups['ipa'][0]]['hostname'] }}"
+    ipa_master_ip: "{{ hostvars[groups['ipa'][0]]['ansible_host'] }}"
+  run_once: true # Ensures this is calculated once and shared
       
 - name: test our connections on {{ guest_member }}
   import_tasks: connections.yml
