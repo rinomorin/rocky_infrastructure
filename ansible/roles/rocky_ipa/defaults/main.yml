@@ -11,12 +11,6 @@ ipa_mkhomedir: true
 ipa_no_forwarders: true
 ipa_no_ntp: true
 ipa_no_hbac_allow: true
-ipa_dns_zones:
-  - name: "{{ lookup('env', 'ipa_domain') | lower }}"
-    allow_transfer: "{{ groups['ipa_servers'] | map('extract', hostvars, ['ansible_host']) | list }}"
-    allow_query:
-      - "any"
-    allow_update: "{{ groups['ipa_servers'] | map('extract', hostvars, ['ansible_host']) | list }}"
 ipa_ca_intermediate: "{{ groups['ca_intermediate'][0] }}"
 ipa_ca_intermediate_ip: "{{ hostvars[groups['ca_intermediate'][0]].ansible_host }}"
 ipa_helper: "{{ groups['helpers'][0] }}"

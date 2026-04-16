@@ -4,7 +4,7 @@
   block:
     - name: "Replica: Validate Connectivity to Primary Master"
       ansible.builtin.wait_for:
-        host: "{{ ipa_primary_fqdn }}"
+        host: "{{ ipa_master }}"
         port: "{{ item.port }}"
         timeout: 10
         msg: "Cannot reach Primary IPA on port {{ item.port }} ({{ item.name }})"
