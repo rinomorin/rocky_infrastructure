@@ -38,8 +38,8 @@ if [ -d "${VENV_PATH}" ]; then
     echo "--- Step 3: Sourcing environment: ${VENV_PATH} ---"
     source "${VENV_PATH}/env_build.sh"
 fi
-echo source "{DEST_DIR}/ansible/temp.txt"
-
+echo source "${DEST_DIR}/ansible/temp.txt"
+source "${DEST_DIR}/ansible/temp.txt"
 # Ensure ANSIBLE_CONFIG is set if not already passed in the SSH string
 export ANSIBLE_CONFIG="${DEST_DIR}/ansible/ansible.cfg"
 # pwd  && echo ${PLAYBOOK}
