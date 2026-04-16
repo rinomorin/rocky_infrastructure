@@ -35,18 +35,13 @@ cd "${DEST_DIR}/ansible" || { echo "Failed to enter ${DEST_DIR}/ansible."; exit 
 
 
 # 3: Source environment
-if [ -d "${DEST_DIR}/venv" ]; then
-    echo "--- Step 3: Sourcing environment: ${DEST_DIR}/venv ---"
-    source "${DEST_DIR}/venv/bin/activate"
+if [ -d "${HOME}/deploy/venv" ]; then
+    echo "--- Step 3: Sourcing environment: ${HOME}/deploy/venv ---"
+    source "${HoME}/venv/bin/activate"
 else
     echo "--- Step 3: Sourcing environment: ${DEST_DIR}/env_build.sh"
 fi
-if [ -d "${DEST_DIR}/env_build.sh" ]; then
-    echo "--- Step 3: Sourcing environment: ${DEST_DIR}/env_build.sh ---"
-    source "${DEST_DIR}/env_build.sh"
-else
-    echo "--- Step 3: Sourcing environment: ${DEST_DIR}/env_build.sh"
-fi
+source "${DEST_DIR}/env_build.sh"
 
 # Ensure ANSIBLE_CONFIG is set if not already passed in the SSH string
 export ANSIBLE_CONFIG="${DEST_DIR}/ansible/ansible.cfg"
