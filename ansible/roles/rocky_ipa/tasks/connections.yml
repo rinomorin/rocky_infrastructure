@@ -1,4 +1,10 @@
 ---
+- name: Set  hostname
+  shell: >
+    hostnamectl set-hostname {{ hostvars[inventory_hostname].hostname }}
+  register: set_hostname
+  changed_when: false
+
 - name: Test connectivity from local to Helper
   shell: >
     whoami && hostname
@@ -8,4 +14,5 @@
 - name: Test connectivity from Helper to local results
   debug:
     var: whoami.stdout
+
 
