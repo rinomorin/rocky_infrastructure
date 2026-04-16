@@ -43,6 +43,21 @@
     - ipa_stage == 'unconfigured'
 
 # --- STAGE 2: DNS INJECTION (PRE-INSTALL) ---
+- name: Ensure DNS Zones exist on Master
+  become: true
+  ansible.builtin.shell: |
+    echo '{{ ipa_admin_password }}' | kinit admin && \
+    ipa dnszone-add {{ hostname.split('.')[1:] | join('.') }} --author-email=admin@{{ ipa_domain }}
+  delegate_to: "{{ ipa_master_ip }}"
+  register: zone_add_out
+  failed_when: 
+    - zone_add_out.rc != 0 
+    - "'already exists' not in zone_add_out.stderr"
+  when: 
+    - ipa_type == 'replica'
+    - ipa_stage == 'unconfigured'
+  no_log: true
+
 - name: "Ensure DNS Records exist for installation {{ inventory_hostname.split('.')[0] }}"
   become: true
   ansible.builtin.shell: |
@@ -112,7 +127,7 @@
       --principal=admin \
       --admin-password='{{ ipa_admin_password }}' \
       --server={{ ipa_primary_fqdn }} \
-      --domain={{ ipa_domain | lower }} \
+      --domain={{ ca_hostname.split('.')[1:] | join('.') | lower }} \
       --realm={{ ipa_realm }} \
       --hostname={{ ca_hostname }} \
       --setup-ca \
@@ -122,7 +137,7 @@
   register: ipa_replica_out
   when: 
     - ipa_stage == 'unconfigured'
-    - ipa_type == 'replica' # Ensuring this matches your debug output
+    - ipa_type == 'replica'
 
 # --- STAGE 4: RECOVERY & HEALTH VERIFICATION ---
 - name: Post-Config / Weekly Health Verification

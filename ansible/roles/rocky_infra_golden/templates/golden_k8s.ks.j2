@@ -20,8 +20,8 @@ user --name=core --groups=wheel --lock
 firewall --enabled --service=ssh
 selinux --enforcing
 services --enabled=sshd
-
-bootloader --location=mbr --boot-drive={{ install_disk }} --append="crashkernel=auto"
+# Enable FIPS for Infra Profile
+bootloader --location=mbr --append="crashkernel=auto {{ 'fips=1' if build_profile == 'k8s' else '' }}"
 
 # ------------------------------------------------------------
 # Disk layout: EFI + /boot + XFS root
