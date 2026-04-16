@@ -12,13 +12,23 @@
       ipa_domain {{ ipa_domain }}
       ipa_realm {{ ipa_realm }}
 
+- name: Pre-Install - Ensure Entropy and Certmonger
+  become: yes
+  ansible.builtin.shell: |
+    systemctl restart certmonger
+    # Ensure haveged or rng-tools is running if available to prevent entropy hang
+    systemctl start rngd || true 
+  when: ipa_stage == 'unconfigured'
+
 - name: Configure IPA CA server (Initial Build)
   become: yes
+  environment:
+    PKI_TIMEOUT: "600" # Increase timeout to 10 minutes
   ansible.builtin.shell: |
     umask 022 && ipa-server-install \
       --unattended \
       --domain={{ ipa_domain | lower }} \
-      --realm={{ ipa_domain | upper }} \
+      --realm={{ ipa_realm }} \
       --ds-password='{{ ipa_dm_password }}' \
       --admin-password='{{ ipa_admin_password }}' \
       --hostname={{ ca_hostname }} \
@@ -30,7 +40,6 @@
   register: ipa_install_out
   when: ipa_stage == 'unconfigured'
 
-
 # --- STAGE 4: RECOVERY & HEALTH VERIFICATION ---
 - name: Post-Config / Weekly Health Verification
   block:
@@ -41,7 +50,7 @@
       changed_when: false
 
     - name: Acquire Kerberos ticket for host principal
-      ansible.builtin.command: kinit -kt /etc/krb5.keytab "host/{{ ca_hostname }}| upper }}"
+      command: kinit -kt /etc/krb5.keytab "host/{{ ca_hostname }}@{{ ipa_domain | upper }}"
       changed_when: false
 
     - name: Audit IPA related services (Systemd)
