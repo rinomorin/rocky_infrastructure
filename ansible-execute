@@ -51,4 +51,4 @@ echo "--- Step 4: Executing ansible-playbook ---"
 ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
 echo ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
 echo "EXTRA_VARS: ${EXTRA_VARS}"
-env
+env|grep ipa_
