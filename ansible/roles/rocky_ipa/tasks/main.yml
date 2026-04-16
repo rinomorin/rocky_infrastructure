@@ -39,7 +39,7 @@
       ca_hostname: "{{ hostvars[inventory_hostname].hostname | default( lookup('env', 'ipa_master'))}}"
     when: 
       - ipa_stage == 'unconfigured'
-      - ipa_type in ('primary', 'master')
+      - ipa_type in ('primary', 'master','replica')
 
 
   #   # --- STAGE 3 & 4: Self-Healing & Maintenance ---

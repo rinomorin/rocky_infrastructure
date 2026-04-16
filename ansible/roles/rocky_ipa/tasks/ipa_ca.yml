@@ -97,7 +97,7 @@
   register: ipa_replica_out
   when: 
     - ipa_stage == 'unconfigured'
-    - ipa_role == 'member'
+    - ipa_role == 'replica'
 
 # --- STAGE 4: RECOVERY & HEALTH VERIFICATION ---
 - name: Post-Config / Weekly Health Verification
