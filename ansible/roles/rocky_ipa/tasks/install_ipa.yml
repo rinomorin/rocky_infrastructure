@@ -93,6 +93,9 @@
     reboot_timeout: 600
     post_reboot_delay: 30
 
+- debug:
+    msg: "ipa_install_result: {{ ipa_install_result.changed }}"
+
 - name: Dynamic Re-check
   ansible.builtin.include_tasks: check_status.yml
   when: ipa_install_result.changed | bool
