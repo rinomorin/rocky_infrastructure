@@ -1,4 +1,34 @@
 # roles/ipa_setup/install.yml
+---
+- name: Network Prep - Force Temporary DNS
+  become: yes
+  ansible.builtin.shell: |
+    echo "nameserver 8.8.8.8" > /etc/resolv.conf
+    echo "nameserver 1.1.1.1" >> /etc/resolv.conf
+  changed_when: false
+
+- name: Network Prep - Test Mirror Connectivity
+  ansible.builtin.command: curl -I https://mirrors.rockylinux.org
+  register: mirror_test
+  until: mirror_test.rc == 0
+  retries: 3
+  delay: 5
+  changed_when: false
+
+- name: Enforce FQDN Hostname
+  ansible.builtin.hostname:
+    name: "{{ hostname }}"
+
+# - name: Install IPA packages
+#   ansible.builtin.package:
+#     name:
+#       - ipa-server
+#       - ipa-server-dns
+#       - python3-pexpect
+#     state: present
+#   register: ipa_install_result
+  # ... rest of your when logic ...
+
 - name: Install IPA packages
   ansible.builtin.package:
     name:
