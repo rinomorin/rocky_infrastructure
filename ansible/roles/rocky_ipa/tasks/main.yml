@@ -20,6 +20,10 @@
     import_tasks: install_ipa.yml
     when: ipa_stage == 'required'
 
+  - name: Dynamic Re-check
+    ansible.builtin.include_tasks: check_status.yml
+    when: ipa_install_result.changed | bool
+
   - debug:
       msg: "ipa_stage {{ipa_stage}} and ipa_type {{ipa_type}}"
 

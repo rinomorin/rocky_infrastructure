@@ -70,8 +70,8 @@
       shell: |
         virt-install \
           --name {{ guest_member }} \
-          --ram {{ hostvars[guest_member]['ram_mb'] | default(2048) }} \
-          --vcpus {{ hostvars[guest_member]['cpu_count'] | default(2) }} \
+          --ram {{ tram_size | default(4096) }} \
+          --vcpus {{ tcpu_count | default(2) }} \
           --disk path=/var/lib/libvirt/images/{{ guest_member }}.qcow2,bus=sata,size={{ tdisk_size }} \
           --import \
           --os-variant {{ 'rocky9' if (guest_configs[guest_member].os | default('9')) == '9' else 'rocky10' }} \

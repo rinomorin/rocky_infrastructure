@@ -1,1 +1,0 @@
-ansible-playbook -i inventory.yml -e BUILD_PROFILE='infra' force_new_image=True playbooks/build_infr.yml

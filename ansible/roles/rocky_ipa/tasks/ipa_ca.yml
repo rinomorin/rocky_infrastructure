@@ -1,6 +1,42 @@
 ---
-# --- STAGE 2: INITIAL CONFIGURATION ---
-- 
+# --- STAGE 1: PRE-FLIGHT VALIDATION ---
+- name: Verify Environment Readiness
+  block:
+    - name: "Replica: Validate Connectivity to Primary Master"
+      ansible.builtin.wait_for:
+        host: "{{ ipa_primary_fqdn }}"
+        port: "{{ item.port }}"
+        timeout: 10
+        msg: "Cannot reach Primary IPA on port {{ item.port }} ({{ item.name }})"
+      loop:
+        - { name: 'LDAP', port: 389 }
+        - { name: 'LDAPS', port: 636 }
+        - { name: 'Kerberos KDC', port: 88 }
+        - { name: 'Dogtag/HTTPS', port: 443 }
+      when: ipa_role == 'replica'
+
+    - name: "Replica: Check Dogtag (PKI) Service Status on Primary"
+      ansible.builtin.uri:
+        url: "https://{{ ipa_primary_fqdn }}/ca/ee/ca/checkStatus"
+        validate_certs: no
+        status_code: 200
+      register: dogtag_check
+      when: ipa_role == 'replica'
+
+  when: ipa_stage == 'unconfigured'
+
+# --- STAGE 2: DNS INJECTION (PRE-INSTALL) ---
+- name: Ensure DNS Records exist for installation
+  ansible.builtin.command: >
+    ipa dnsrecord-add {{ ipa_domain }} {{ inventory_hostname_short }} --a-rec={{ ansible_host }}
+  delegate_to: "{{ ipa_primary_fqdn }}"
+  remote_user: admin
+  when: 
+    - ipa_role == 'replica'
+    - ipa_stage == 'unconfigured'
+  failed_when: false # Prevent failure if record already exists
+
+# --- STAGE 3: INSTALLATION LOGIC ---
 - name: Check variables
   debug:
     msg: |
@@ -38,7 +74,30 @@
       --allow-zone-overlap \
       --no-host-dns
   register: ipa_install_out
-  when: ipa_stage == 'unconfigured'
+  when: 
+    - ipa_stage == 'unconfigured'
+    - ipa_role | default('primary') == 'primary'
+
+- name: Configure IPA Secondary Replica (with CA)
+  become: yes
+  environment:
+    PKI_TIMEOUT: "600"
+  ansible.builtin.shell: |
+    umask 022 && ipa-replica-install \
+      --unattended \
+      --principal=admin \
+      --admin-password='{{ ipa_admin_password }}' \
+      --server={{ ipa_primary_fqdn }} \
+      --domain={{ ipa_domain | lower }} \
+      --realm={{ ipa_realm }} \
+      --hostname={{ ca_hostname }} \
+      --setup-ca \
+      --setup-dns \
+      --no-host-dns
+  register: ipa_replica_out
+  when: 
+    - ipa_stage == 'unconfigured'
+    - ipa_role == 'member'
 
 # --- STAGE 4: RECOVERY & HEALTH VERIFICATION ---
 - name: Post-Config / Weekly Health Verification

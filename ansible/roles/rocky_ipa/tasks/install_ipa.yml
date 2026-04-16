@@ -33,16 +33,6 @@
   ansible.builtin.hostname:
     name: "{{ hostname }}"
 
-# - name: Install IPA packages
-#   ansible.builtin.package:
-#     name:
-#       - ipa-server
-#       - ipa-server-dns
-#       - python3-pexpect
-#     state: present
-#   register: ipa_install_result
-  # ... rest of your when logic ...
-
 - name: Install IPA packages
   ansible.builtin.package:
     name:
@@ -140,10 +130,6 @@
 
 - debug:
     msg: "ipa_install_result: {{ ipa_install_result.changed }}"
-
-- name: Dynamic Re-check
-  ansible.builtin.include_tasks: check_status.yml
-  when: ipa_install_result.changed | bool
 
 
 
