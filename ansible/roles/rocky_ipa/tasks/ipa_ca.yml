@@ -12,8 +12,9 @@
       --hostname={{ ca_hostname }} \
       --setup-dns \
       --auto-forwarders \
-      --auto-reverse
-  # no_log: true
+      --auto-reverse \
+      --allow-zone-overlap \
+      --no-host-dns
   register: ipa_install_out
   when: ipa_stage == 'unconfigured'
 
