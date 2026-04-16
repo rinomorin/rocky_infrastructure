@@ -1,5 +1,25 @@
 ---
 # --- STAGE 0: NETWORK & RESOLUTION PREP ---
+- name: Enable FIPS on k8s server
+  block:
+    - name: Check if FIPS is enabled
+      ansible.builtin.command: fips-mode-setup --check
+      register: fips_check
+      changed_when: false
+
+    - name: Enable FIPS mode
+      ansible.builtin.command: fips-mode-setup --enable
+      when: "'is enabled' not in fips_check.stdout"
+      register: fips_enable
+
+    - name: Reboot for FIPS parity with Master
+      ansible.builtin.reboot:
+      when: fips_enable is changed
+  when: 
+    - ipa_stage == 'unconfigured'
+    - ipa_type == 'replica'
+
+# --------------------------------
 - name: Enforce IPA DNS Resolution
   become: yes
   block:

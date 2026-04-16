@@ -128,11 +128,25 @@
   changed_when: 
     - start_res.rc == 0
 
-- name: "Discover Temporary DHCP IP for {{ guest_member }}"
+- name: "Ensure all NICs are enabled for {{ guest_member }}"
+  become: yes
+  shell: |
+    # Get all interface MAC addresses and set their link state to up
+    for mac in $(virsh domiflist "{{ guest_member }}" | awk '/52:54:/ {print $5}'); do
+      virsh domif-setlink "{{ guest_member }}" "$mac" up
+    done
+  register: nic_enable
+  changed_when: false
+
+- name: "Discover Temporary DHCP IP for {{ guest_member }} on {{ target_network }}"
   become: true
   shell: |
     GUEST_IP=$(virsh domifaddr "{{ guest_member }}" --source agent 2>/dev/null | grep -oP '{% raw %}(\d{1,3}\.){3}\d{1,3}{% endraw %}' | grep -v '127.0.0.1' | head -n 1)
     
+    if [ -z "$GUEST_IP" ]; then
+      GUEST_IP=$(virsh net-dhcp-leases "{{ target_network }}" | grep -i "{{ guest_member }}" | awk '{print $5}' | cut -d/ -f1)
+    fi
+
     if [ -z "$GUEST_IP" ]; then
       MAC=$(virsh domiflist "{{ guest_member }}" | grep "{{ target_network }}" | awk '{print $5}' | head -n 1)
       GUEST_IP=$(virsh net-dhcp-leases "{{ target_network }}" | grep -i "$MAC" | awk '{print $5}' | cut -d/ -f1)
