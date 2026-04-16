@@ -9,44 +9,43 @@
       changed_when: false
       ignore_errors: yes
 
-    - name: "DNS Prep - Set Persistent DNS via nmcli"
+    # --- STAGE 0: NETWORK & RESOLUTION PREP ---
+    - name: DNS Prep - Set Persistent DNS via nmcli
+      become: yes
       community.general.nmcli:
-        conn_name: "Wired connection 1" # Adjust to match your interface name
+        conn_name: "Wired connection 1"
         dns:
           - "{{ ipa_master_ip }}"
         dns_search:
           - "{{ ipa_domain }}"
         state: present
+      # Match the 'type: replica' from your debug
+      when: ipa_type == 'replica' and ipa_stage == 'unconfigured'
       register: nmcli_update
 
-    - name: "DNS Prep - Apply Network Changes"
+    - name: DNS Prep - Apply Network Changes
       ansible.builtin.shell: "nmcli connection up 'Wired connection 1' && systemctl restart NetworkManager"
-      when: nmcli_update.changed
+      when: nmcli_update is changed
 
-    - name: "DNS Prep - Lockdown resolv.conf (Optional/Hardcore)"
-      ansible.builtin.file:
-        path: /etc/resolv.conf
-        attributes: +i
-      when: force_immutable_dns | default(false)
-# --- STAGE 2: DNS INJECTION (PRE-INSTALL) ---
+    # --- STAGE 2: DNS INJECTION (PRE-INSTALL) ---
     - name: Ensure DNS Records exist for installation
       become: true
-      # We kinit as admin using the password before running the dnsrecord-add
+      # Log in to Master using IP, kinit, and add the record for the replica
       ansible.builtin.shell: |
         echo '{{ ipa_admin_password }}' | kinit admin && \
         ipa dnsrecord-add {{ ipa_domain }} {{ inventory_hostname_short }} --a-rec={{ ansible_host }}
+      # CRITICAL: Use the IP of the Master so the controller doesn't need DNS to connect
       delegate_to: "{{ ipa_master_ip }}"
       when: 
-        - ipa_role == 'member'
+        - ipa_type == 'replica'
         - ipa_stage == 'unconfigured'
       register: dns_injection_out
-      # Ignore error if the record already exists or if already authenticated
       failed_when: 
         - dns_injection_out.rc != 0 
         - "'already exists' not in dns_injection_out.stderr"
-        - "'Already logged in' not in dns_injection_out.stderr"
-      no_log: true # Protect the admin password in the logs
-  when: ipa_role in ['member', 'client'] and ipa_stage == 'unconfigured'
+      no_log: true
+      
+  when: ipa_role in ['member', 'client','replica'] and ipa_stage == 'unconfigured'
 
 # --- STAGE 1: PRE-FLIGHT VALIDATION ---
 - name: Verify Environment Readiness
