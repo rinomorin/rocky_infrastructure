@@ -1,6 +1,6 @@
 ---
 - debug:
-    msg: "helper debug {{ hostvars[inventory_hostname]['ipa_cluster_role'] | default('client') }}"
+    msg: "helper debug {{ hostvars[inventory_hostname]}} as {{ hostvars[inventory_hostname]['ipa_cluster_role']}}"
 - name: Pin IPA Master Details
   set_fact:
     # Force the master to be the first host in the 'ipa' group
