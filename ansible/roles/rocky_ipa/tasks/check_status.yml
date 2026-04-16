@@ -1,9 +1,10 @@
-# roles/ipa_setup/tasks/check_status.yml
-- name: Refresh Facts
-  ansible.builtin.package_facts:
-    manager: auto
+- name: Check if IPA package is actually installed
+  ansible.builtin.shell: "rpm -q ipa-server"
+  register: rpm_check
+  failed_when: false
+  changed_when: false
 
-- name: Check for IPA configuration
+- name: Check for IPA configuration file
   ansible.builtin.stat:
     path: /etc/ipa/default.conf
   register: ipa_conf_file
@@ -19,11 +20,12 @@
     ipa_stage: "{{ item.stage }}"
   when: item.condition
   loop:
+    # Use the return code from rpm -q (0 means it is installed)
     - stage: "required"
-      condition: "{{ 'freeipa-server' not in ansible_facts.packages }}"
+      condition: "{{ rpm_check.rc != 0 }}"
     
     - stage: "unconfigured"
-      condition: "{{ 'freeipa-server' in ansible_facts.packages and not ipa_conf_file.stat.exists }}"
+      condition: "{{ rpm_check.rc == 0 and not ipa_conf_file.stat.exists }}"
     
     - stage: "configured"
       condition: "{{ ipa_conf_file.stat.exists and ipa_service_check.rc != 0 }}"
