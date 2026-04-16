@@ -12,8 +12,7 @@
       - "stage {{ipa_stage}}"
       - "type {{ipa_type}}"
   
-
-- name: process stage
+- name: process stages
   block:
 
   - name: install rpm
