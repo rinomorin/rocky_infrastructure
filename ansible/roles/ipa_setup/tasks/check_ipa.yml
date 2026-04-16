@@ -1,70 +1,32 @@
-- name: Run a ping module (fast SSH test)
-  ansible.builtin.ping:
+- name: Refresh Facts
+  ansible.builtin.package_facts:
+    manager: auto
 
-- name: Check whoami over SSH
-  ansible.builtin.command: whoami
-  register: ssh_check
-  changed_when: false
+- name: Check for IPA configuration
+  ansible.builtin.stat:
+    path: /etc/ipa/default.conf
+  register: ipa_conf_file
 
-
-- name: List active replicas (only on configured masters)
-  become: yes
-  shell: ipa-replica-manage list |grep "{{ inventory_hostname }}" 2>/dev/null || true
-  register: replica_check
-  changed_when: false
-  
-- name: Check if oscap log exists
-  become: true
-  shell: ls /var/log/oscap.log
-  register: cis_check2
-  changed_when: false
+- name: Check IPA service status
+  ansible.builtin.command: "ipactl status"
+  register: ipa_service_check
   failed_when: false
-
-- name: Verify CA trust list contains IPA CA
-  become: yes
-  shell: trust list | grep "{{ ipa_domain | upper }}"
-  register: trust_list
   changed_when: false
-  failed_when: false
 
-- name: Show results
-  debug:
-    msg: |
-      trust_list is {{ trust_list.stdout | default(trust_list) }}
-      ssh_check is {{ ssh_check.stdout | default(ssh_check) }}
-      replica_check is {{ replica_check.stdout | default(replica_check) }}
-      cis_check2 is {{ cis_check2.stdout | default(cis_check2) }}
-
-- name: set status
-  set_fact:
-    vm_build_stage: "compliant"
-  when:
-    - "'root' in ssh_check.stdout"
-    - "'/var/log/oscap.log' in cis_check2.stdout"
-
-- name: set status
-  set_fact:
-    vm_build_stage: "scanned"
-  when:
-    - "'root' in ssh_check.stdout"
-    - "'/var/log/oscap.log' in cis_check2.stdout"
-    - ipa_domain | upper in (trust_list.stdout | default(''))
-
-- name: set status ready
-  set_fact:
-    vm_build_stage: "ready"
-  when:
-    - inventory_hostname in (replica_check.stdout | default(''))
-
-- name: Show results
-  debug:
-    msg:
-      - "Connected as {{ ssh_check.stdout }}"
-      - "{{ replica_check.stdout | default('noreplica') }}"
-      - "{{ cis_check2.stdout | default('nocis') }}"
-      - "{{ trust_list.stdout | default('nolist') }}"
-      - "{{ vm_build_stage }}"
-
-- name: update global_vm_build_state
-  set_fact:
-    global_vm_build_state: "{{ vm_build_stage }}"
+- name: "Determine IPA Stage"
+  ansible.builtin.set_fact:
+    ipa_stage: "{{ item.stage }}"
+  when: item.condition
+  loop:
+    # Use the name found in your 'rpm -qa'
+    - stage: "required"
+      condition: "{{ 'ipa-server' not in ansible_facts.packages }}"
+    
+    - stage: "unconfigured"
+      condition: "{{ 'ipa-server' in ansible_facts.packages and not ipa_conf_file.stat.exists }}"
+    
+    - stage: "configured"
+      condition: "{{ ipa_conf_file.stat.exists and ipa_service_check.rc != 0 }}"
+    
+    - stage: "running"
+      condition: "{{ ipa_conf_file.stat.exists and ipa_service_check.rc == 0 }}"
