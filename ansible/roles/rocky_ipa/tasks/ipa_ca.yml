@@ -8,30 +8,36 @@
       register: active_conn_name
       changed_when: false
 
-    - name: "DNS Prep - Test Connectivity to Master IP"
-      # We test ping first to make sure .10 is even alive
-      ansible.builtin.command: "ping -c 1 {{ ipa_master_ip }}"
-      changed_when: false
+    - name: "DNS Prep - Test SSH Connectivity to Master {{ ipa_master }} @ {{ ipa_master_ip }}"
+      # We use wait_for on Port 22 because we know SSH is working
+      ansible.builtin.wait_for:
+        host: "{{ ipa_master_ip }}"
+        port: 22
+        timeout: 5
+        msg: "Cannot reach Master IP {{ ipa_master_ip }} on Port 22"
+      when: ansible_host != ipa_master_ip
 
     - name: "DNS Prep - Configure DNS via NMCLI Shell"
-      # We force 'ipv4.ignore-auto-dns yes' so DHCP doesn't overwrite us
+      # We force 'ipv4.ignore-auto-dns yes' so the node stops using 8.8.8.8
       ansible.builtin.shell: |
         nmcli connection modify "{{ active_conn_name.stdout }}" \
         ipv4.dns "{{ ipa_master_ip }}" \
         ipv4.dns-search "{{ ipa_domain }}" \
         ipv4.ignore-auto-dns yes && \
         nmcli connection up "{{ active_conn_name.stdout }}"
-      register: dns_result
-      # Only run if we aren't the Master
+      register: nm_mod
       when: ansible_host != ipa_master_ip
 
-    - name: "DNS Prep - Verify Resolution"
-      # Now nslookup should work because we pointed it to the Master
+    - name: "DNS Prep - Verify Internal Resolution"
+      # Once the DNS is updated, we should be able to resolve the Master's name
       ansible.builtin.command: "nslookup {{ ipa_master_fqdn }}"
+      register: resolution_verify
       changed_when: false
-      when: dns_result is changed
+      until: resolution_verify.rc == 0
+      retries: 3
+      delay: 2
+      when: nm_mod is changed
 
-  # Run on everything that isn't the primary master
   when: 
     - ansible_host != ipa_master_ip
     - ipa_stage == 'unconfigured'
