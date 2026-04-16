@@ -31,7 +31,7 @@
       ipa_dm_password: "{{ lookup('env', 'ipa_dm_password')}}"
       ipa_admin_password: "{{ lookup('env', 'ipa_admin_password')}}"
       ipa_master: "{{ hostvars[inventory_hostname].hostname | default( lookup('env', 'ipa_master')) }}"
-      ipa_master_ip: "{{ hostvars[inventory_hostname].ansible_host | default( lookup('env', 'ipa_master_ip))}}"
+      ipa_master_ip: "{{ hostvars[inventory_hostname].ansible_host | default( lookup('env', 'ipa_master_ip'))}}"
       ca_hostname: "{{ hostvars[inventory_hostname].hostname | default( lookup('env', 'ipa_master'))}}"
     when: 
       - ipa_stage == 'unconfigured'

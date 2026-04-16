@@ -11,7 +11,7 @@
       ca_hostname {{ ca_hostname }}
       ipa_domain {{ ipa_domain }}
       ipa_realm {{ ipa_realm }}
-      
+
 - name: Configure IPA CA server (Initial Build)
   become: yes
   ansible.builtin.shell: |
