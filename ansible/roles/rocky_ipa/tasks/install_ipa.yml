@@ -3,31 +3,25 @@
   package:
     name:
       - freeipa-server
-      - freeipa-server-dns
-      - samba
-      - samba-winbind
-      - samba-winbind-clients
-      - ipa-server-trust-ad
-      - python3-pexpect
+      # ... rest of packages ...
     state: present
-    nobest: true
   register: ipa_install_result
-  when: "'ca' in group_names or 'ca_intermediate' in group_names"
+  when: 
+    - ipa_stage == 'required'
+    - ipa_type in ('primary', 'master', 'member', 'replica', 'client')
 
 - name: Ensure IPA install audit directory exists
   file:
     path: /var/log/ipa_install_status
     state: directory
     mode: '0755'
-  when: "'ca' in group_names or 'ca_intermediate' in group_names"
- 
+  
 - name: Ensure IPA install audit directory exists
   file:
     path: /var/log/ipa_version
     state: directory
     mode: '0755'
-  when: "'ca' in group_names or 'ca_intermediate' in group_names"
-
+  
 - name: Configure firewall for IPA
   become: true
   ansible.builtin.shell: |
@@ -66,8 +60,9 @@
     pre_reboot_delay: 10
     reboot_timeout: 600
     post_reboot_delay: 30
-  when: 
-    - "'ca' in group_names or 'ca_intermediate' in group_names"
-    - ipa_install_result.changed
+
+- name: Dynamic Re-check
+  ansible.builtin.include_tasks: check_status.yml
+  when: ipa_install_result.changed | bool
 
 

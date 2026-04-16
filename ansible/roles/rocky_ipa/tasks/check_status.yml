@@ -1,8 +1,9 @@
-- name: Gather package facts
+# roles/ipa_setup/tasks/check_status.yml
+- name: Refresh Facts
   ansible.builtin.package_facts:
     manager: auto
 
-- name: Check for IPA configuration file
+- name: Check for IPA configuration
   ansible.builtin.stat:
     path: /etc/ipa/default.conf
   register: ipa_conf_file
@@ -13,28 +14,19 @@
   failed_when: false
   changed_when: false
 
-- name: "Stage 1: Required (Fresh Plate)"
+- name: "Determine IPA Stage"
   ansible.builtin.set_fact:
-    ipa_stage: "required"
-  when: "'ipa-server' not in ansible_facts.packages"
-
-- name: "Stage 2: Unconfigured"
-  ansible.builtin.set_fact:
-    ipa_stage: "unconfigured"
-  when: 
-    - "'ipa-server' in ansible_facts.packages"
-    - not ipa_conf_file.stat.exists
-
-- name: "Stage 3: Configured"
-  ansible.builtin.set_fact:
-    ipa_stage: "configured"
-  when: 
-    - ipa_conf_file.stat.exists
-    - ipa_service_check.rc != 0
-
-- name: "Stage 4: Running"
-  ansible.builtin.set_fact:
-    ipa_stage: "running"
-  when: 
-    - ipa_conf_file.stat.exists
-    - ipa_service_check.rc == 0
+    ipa_stage: "{{ item.stage }}"
+  when: item.condition
+  loop:
+    - stage: "required"
+      condition: "{{ 'freeipa-server' not in ansible_facts.packages }}"
+    
+    - stage: "unconfigured"
+      condition: "{{ 'freeipa-server' in ansible_facts.packages and not ipa_conf_file.stat.exists }}"
+    
+    - stage: "configured"
+      condition: "{{ ipa_conf_file.stat.exists and ipa_service_check.rc != 0 }}"
+    
+    - stage: "running"
+      condition: "{{ ipa_conf_file.stat.exists and ipa_service_check.rc == 0 }}"
