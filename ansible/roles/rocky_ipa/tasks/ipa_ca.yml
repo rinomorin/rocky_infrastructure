@@ -13,7 +13,7 @@
       --setup-dns \
       --auto-forwarders \
       --auto-reverse
-  no_log: true
+  # no_log: true
   register: ipa_install_out
   when: ipa_stage == 'unconfigured'
 

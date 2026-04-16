@@ -22,6 +22,8 @@
 
   - name: Process Stage 2 - Primary host Configuration
     import_tasks: ipa_ca.yml
+    vars:
+      hostname:{{ hostvars[inventory_hostname].hostname }}
     when: 
       - ipa_stage == 'unconfigured'
       - ipa_type in ('primary', 'master')
