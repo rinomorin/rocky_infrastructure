@@ -191,7 +191,9 @@
       changed_when: "'added' in dns_sync.stdout"
 
   # Run verification if we just installed OR if we were already running
-  when: ipa_stage in ['running', 'configured'] or (ipa_install_out is defined and not ipa_install_out.failed)
+  when: >
+    ipa_stage in ['running', 'configured'] or 
+    (ipa_install_out is defined and ipa_install_out is not failed)
 
 - name: Refresh Discovery Facts
   ansible.builtin.include_tasks: check_status.yml
