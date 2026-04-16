@@ -43,6 +43,7 @@ else
 fi
 source "${DEST_DIR}/env_build.sh"
 
+
 # Ensure ANSIBLE_CONFIG is set if not already passed in the SSH string
 export ANSIBLE_CONFIG="${DEST_DIR}/ansible/ansible.cfg"
 # pwd  && echo ${PLAYBOOK}
@@ -52,3 +53,4 @@ ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
 echo ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
 echo "EXTRA_VARS: ${EXTRA_VARS}"
 env|grep ipa_
+echo source "${DEST_DIR}/env_build.sh"
