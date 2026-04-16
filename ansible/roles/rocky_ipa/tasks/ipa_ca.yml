@@ -9,7 +9,7 @@
       --realm={{ ipa_domain | upper }} \
       --ds-password='{{ ipa_dm_password }}' \
       --admin-password='{{ ipa_admin_password }}' \
-      --hostname={{ hostname }} \
+      --hostname={{ ca_hostname }} \
       --setup-dns \
       --auto-forwarders \
       --auto-reverse
