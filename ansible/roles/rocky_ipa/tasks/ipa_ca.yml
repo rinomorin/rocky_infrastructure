@@ -43,20 +43,22 @@
     - ipa_stage == 'unconfigured'
 
 # --- STAGE 2: DNS INJECTION (PRE-INSTALL) ---
-- name: Ensure DNS Records exist for installation  {{ inventory_hostname.split('.')[0] }} @ {{ ansible_host }}
+- name: "Ensure DNS Records exist for installation {{ inventory_hostname.split('.')[0] }}"
   become: true
   ansible.builtin.shell: |
     echo '{{ ipa_admin_password }}' | kinit admin && \
     ipa dnsrecord-add {{ ipa_domain }} {{ inventory_hostname.split('.')[0] }} --a-rec={{ ansible_host }}
   delegate_to: "{{ ipa_master_ip }}"
-  when: 
-    - ipa_type == 'replica'
-    - ipa_stage == 'unconfigured'
   register: dns_injection_out
+  # We refine the failure logic here
   failed_when: 
     - dns_injection_out.rc != 0 
     - "'already exists' not in dns_injection_out.stderr"
-  # no_log: true
+    - "'no modifications to be performed' not in dns_injection_out.stderr"
+  no_log: true 
+  when: 
+    - ipa_type == 'replica'
+    - ipa_stage == 'unconfigured'
 
 # --- STAGE 3: INSTALLATION LOGIC ---
 - name: Check variables
