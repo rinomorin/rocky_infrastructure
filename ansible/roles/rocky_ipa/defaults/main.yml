@@ -2,6 +2,7 @@
 ipa_stat: "initial"
 ipa_type: "{{ hostvars[inventory_hostname]['cluster_role'] | default('client') }}"
 is_ipa_pkg: False
+ipa_master: "{{ lookup('env', 'ipa_,aster') | lower }}"
 ipa_role: master         # Options: master, replica
 ipa_hostname: "{{ ansible_fqdn }}"
 ipa_setup_dns: true
@@ -16,7 +17,6 @@ ipa_dns_zones:
     allow_query:
       - "any"
     allow_update: "{{ groups['ipa_servers'] | map('extract', hostvars, ['ansible_host']) | list }}"
-
 ipa_ca_intermediate: "{{ groups['ca_intermediate'][0] }}"
 ipa_ca_intermediate_ip: "{{ hostvars[groups['ca_intermediate'][0]].ansible_host }}"
 ipa_helper: "{{ groups['helpers'][0] }}"
