@@ -3,24 +3,22 @@
 - name: Enforce IPA DNS Resolution
   become: yes
   block:
-    - name: "DNS Prep - Test Direct Resolution via IP"
+    - name: "DNS Prep - Test Master DNS Response"
+      # We test if the MASTER is responding to DNS queries before we switch
       ansible.builtin.command: "nslookup {{ ipa_master }} {{ ipa_master_ip }}"
       register: dns_test
       changed_when: false
       ignore_errors: yes
 
-    # --- STAGE 0: NETWORK & RESOLUTION PREP ---
     - name: DNS Prep - Set Persistent DNS via nmcli
-      become: yes
       community.general.nmcli:
         conn_name: "Wired connection 1"
-        dns:
+        # Use dns4 and dns4_search for IPv4 compatibility
+        dns4:
           - "{{ ipa_master_ip }}"
-        dns_search:
+        dns4_search:
           - "{{ ipa_domain }}"
         state: present
-      # Match the 'type: replica' from your debug
-      when: ipa_type == 'replica' and ipa_stage == 'unconfigured'
       register: nmcli_update
 
     - name: DNS Prep - Apply Network Changes
@@ -29,23 +27,19 @@
 
     # --- STAGE 2: DNS INJECTION (PRE-INSTALL) ---
     - name: Ensure DNS Records exist for installation
-      become: true
-      # Log in to Master using IP, kinit, and add the record for the replica
+      # This runs ON the master to add the replica's record
       ansible.builtin.shell: |
         echo '{{ ipa_admin_password }}' | kinit admin && \
-        ipa dnsrecord-add {{ ipa_domain }} {{ inventory_hostname_short }} --a-rec={{ ansible_host }}
-      # CRITICAL: Use the IP of the Master so the controller doesn't need DNS to connect
+        ipa dnsrecord-add {{ ipa_domain }} {{ inventory_hostname.split('.')[0] }} --a-rec={{ ansible_host }}
       delegate_to: "{{ ipa_master_ip }}"
-      when: 
-        - ipa_type == 'replica'
-        - ipa_stage == 'unconfigured'
       register: dns_injection_out
       failed_when: 
         - dns_injection_out.rc != 0 
         - "'already exists' not in dns_injection_out.stderr"
       no_log: true
       
-  when: ipa_role in ['member', 'client','replica'] and ipa_stage == 'unconfigured'
+  # Matches your discovery facts for helper, ipa02, etc.
+  when: ipa_type in ['member', 'client', 'replica'] and ipa_stage == 'unconfigured'
 
 # --- STAGE 1: PRE-FLIGHT VALIDATION ---
 - name: Verify Environment Readiness
