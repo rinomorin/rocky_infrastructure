@@ -1,11 +1,12 @@
 # roles/ipa_setup/install.yml
 - name: Install IPA packages
-  package:
+  ansible.builtin.package:
     name:
-      - freeipa-server
-      # ... rest of packages ...
+      - ipa-server
+      - ipa-server-dns
+      - python3-pexpect
     state: present
-  register: ipa_install_result
+  register: ipa_install_result  
   when: 
     - ipa_stage == 'required'
     - ipa_type in ('primary', 'master', 'member', 'replica', 'client')

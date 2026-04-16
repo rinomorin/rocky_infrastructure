@@ -19,4 +19,57 @@
     import_tasks: install_ipa.yml
     when: ipa_stage == 'required'
 
+  - name: configure ipa server
+    import_tasks: ipa_ca.yml
+    when: 
+      - ipa_stage == 'unconfigured'
+      - ipa_type in ('primary', 'master')
+
   
+  ---
+- name: Identify Current State
+  ansible.builtin.import_tasks: check_status.yml
+
+- name: Initial, Health & Recovery Self-healing
+  block:
+    # --- STAGE 1: Install RPMs & Prepare ---
+    - name: Process Stage 1 - Installation
+      ansible.builtin.import_tasks: install_ipa.yml
+      when: ipa_stage == "required"
+
+    # --- STAGE 2: Configure Server/Member ---
+    - name: Process Stage 2 - Configuration
+      ansible.builtin.import_tasks: ipa_ca.yml
+      when: 
+        - ipa_stage == "unconfigured"
+        - ipa_type in ['primary', 'master']
+
+  #   # --- STAGE 3 & 4: Self-Healing & Maintenance ---
+  #   - name: Self-healing - Ensure Services are Running
+  #     ansible.builtin.command: ipactl start
+  #     when: 
+  #       - ipa_stage in ['configured', 'running']
+  #       - ipa_service_check.rc != 0
+  #     register: repair_attempt
+
+  #   - name: Weekly Maintenance - Sync CA Trust & DNS
+  #     block:
+  #       - name: Force CA Trust Sync
+  #         ansible.builtin.shell: |
+  #           cp /etc/ipa/ca.crt /etc/pki/ca-trust/source/anchors/
+  #           update-ca-trust
+  #         changed_when: false
+
+  #       - name: Re-verify Infrastructure DNS Records
+  #         ansible.builtin.command: >
+  #           ipa dnsrecord-add {{ ipa_domain }} {{ item.name }} --a-rec={{ item.ip }}
+  #         loop:
+  #           - { name: "{{ ipa_master }}", ip: "{{ ipa_master_ip }}" }
+  #           - { name: "{{ ipa_helper }}", ip: "{{ ipa_helper_ip }}" }
+  #         register: dns_sync
+  #         failed_when: false
+  #         changed_when: "'added' in dns_sync.stdout"
+  #     when: ipa_stage == "running" or (repair_attempt is defined and repair_attempt.rc == 0)
+
+  # Global Gate: Don't run on helpers or unknown types
+  when: ipa_type in ['primary', 'master', 'member', 'replica']
