@@ -45,6 +45,20 @@
     - ipa_stage == 'required'
     - ipa_type in ('primary', 'master', 'member', 'replica', 'client')
 
+- name: Enable FIPS on k8s server
+  block:
+    - name: Check if FIPS is enabled
+      ansible.builtin.command: fips-mode-setup --check
+      register: fips_check
+      changed_when: false
+
+    - name: Enable FIPS mode
+      ansible.builtin.command: fips-mode-setup --enable
+      when: "'is enabled' not in fips_check.stdout"
+      register: fips_enable
+  when: 
+    - ipa_type == 'replica'
+
 - name: Ensure IPA install audit directory exists
   file:
     path: /var/log/ipa_install_status
@@ -121,12 +135,39 @@
       --add-port=3269/tcp && \
     firewall-cmd --reload
 
-- name: reboot after ipa install
-  reboot:
-    msg: "Rebooting after IPA package installation"
-    pre_reboot_delay: 10
-    reboot_timeout: 600
-    post_reboot_delay: 30
+- name: Determine Git Remote URL
+  set_fact:
+    # We use 'this_url' to grab the remote from the local git config
+    this_url: "{{ lookup('pipe', 'grep -m1 \"url =\" ' + playbook_dir + '/../../.git/config | cut -d\"=\" -f2 | xargs') }}"
+  run_once: true
+
+- name: Ensure ansible-pull runs again after reboot
+  become: yes
+  ansible.builtin.cron:
+    name: "resume-ipa-config"
+    special_time: reboot
+    # We add a small sleep to ensure the network is fully up before pulling
+    job: "sleep 30 && /opt/ansible_work/infra/ansible-execute  -d /opt/ansible_work/infra -i ~/deploy/inventory.yml -U {{ this_url }} ansible/playbooks/config_infra.yml"
+  # We use the variable name directly here without extra brackets
+  when: inventory_hostname == controller_node
+
+- name: Handle Reboot Logic
+  become: yes
+  block:
+    - name: Reboot standard nodes (Wait for them to return)
+      ansible.builtin.reboot:
+        msg: "Rebooting replica/master nodes"
+        reboot_timeout: 600
+      when: inventory_hostname != controller_node
+
+    - name: Fire-and-Forget Reboot for Controller
+      # We use a detached shell so the script doesn't hang waiting for a connection that's dying
+      ansible.builtin.shell: "nohup bash -c 'sleep 5 && reboot' &"
+      async: 1
+      poll: 0
+      when: inventory_hostname == controller_node
+
+  # when: ipa_install_result.changed
 
 - debug:
     msg: "ipa_install_result: {{ ipa_install_result.changed }}"

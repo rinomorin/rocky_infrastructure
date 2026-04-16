@@ -128,15 +128,6 @@
   changed_when: 
     - start_res.rc == 0
 
-- name: "Ensure all NICs are enabled for {{ guest_member }}"
-  become: yes
-  shell: |
-    # Get all interface MAC addresses and set their link state to up
-    for mac in $(virsh domiflist "{{ guest_member }}" | awk '/52:54:/ {print $5}'); do
-      virsh domif-setlink "{{ guest_member }}" "$mac" up
-    done
-  register: nic_enable
-  changed_when: false
 
 - name: "Discover Temporary DHCP IP for {{ guest_member }} on {{ target_network }}"
   become: true

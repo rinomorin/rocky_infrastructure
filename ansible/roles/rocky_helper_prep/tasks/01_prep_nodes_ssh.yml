@@ -29,6 +29,11 @@
       key: "{{ clean_pub_key }}"
   when: helper_pub_key_raw.stdout is defined
 
+- name: Show Member and targe ip
+  debug: 
+    msg: |
+      "Orchestrator_user {{ Orchestrator_user }}"
+      "target_ip {{target_ip}}"
 - name: "Distribute Key to {{ guest_member }}"
   shell: >
     ssh -o StrictHostKeyChecking=no -i .ssh/id_rsa {{ Orchestrator_user }}@{{ target_ip }}

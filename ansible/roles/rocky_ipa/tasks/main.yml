@@ -4,6 +4,7 @@
     # Force the master to be the first host in the 'ipa' group
     ipa_master_fqdn: "{{ hostvars[groups['ipa'][0]]['hostname'] }}"
     ipa_master_ip: "{{ hostvars[groups['ipa'][0]]['ansible_host'] }}"
+    controller_node: "{{ groups['ipa_helpers'][0] | default('helper') }}"
   run_once: true # Ensures this is calculated once and shared
       
 - name: test our connections on {{ guest_member }}
