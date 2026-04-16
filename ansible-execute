@@ -41,6 +41,13 @@ if [ -d "${DEST_DIR}/venv" ]; then
 else
     echo "--- Step 3: Sourcing environment: ${DEST_DIR}/env_build.sh"
 fi
+if [ -d "${DEST_DIR}/env_build.sh" ]; then
+    echo "--- Step 3: Sourcing environment: ${DEST_DIR}/env_build.sh ---"
+    source "${DEST_DIR}/env_build.sh"
+else
+    echo "--- Step 3: Sourcing environment: ${DEST_DIR}/env_build.sh"
+fi
+
 # Ensure ANSIBLE_CONFIG is set if not already passed in the SSH string
 export ANSIBLE_CONFIG="${DEST_DIR}/ansible/ansible.cfg"
 # pwd  && echo ${PLAYBOOK}

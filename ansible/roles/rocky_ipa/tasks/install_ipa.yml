@@ -19,6 +19,20 @@
   ansible.builtin.hostname:
     name: "{{ hostname }}"
 
+- name: Install IPA packages
+  ansible.builtin.package:
+    name:
+      - ipa-server
+      - ipa-server-dns
+      - python3-pexpect
+    state: present
+  register: ipa_install_result
+  # ... rest of your when logic ...
+
+- name: Enforce FQDN Hostname
+  ansible.builtin.hostname:
+    name: "{{ hostname }}"
+
 # - name: Install IPA packages
 #   ansible.builtin.package:
 #     name:
