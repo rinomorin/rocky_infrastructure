@@ -28,6 +28,7 @@
   register: ipa_install_out
   when: ipa_stage == 'unconfigured'
 
+
 # --- STAGE 4: RECOVERY & HEALTH VERIFICATION ---
 - name: Post-Config / Weekly Health Verification
   block:
