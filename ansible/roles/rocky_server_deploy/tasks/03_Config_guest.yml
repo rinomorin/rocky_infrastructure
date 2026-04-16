@@ -2,21 +2,7 @@
   shell: "virsh domstate {{ guest_member }}"
   register: vm_state
   changed_when: false
-
-#  - "  Name/CIDR    : {{ guest_configs[guest_member].interfaces[pro_seg].name | default('N/A') }} ({{ guest_configs[guest_member].interfaces[pro_seg].cidr | default('N/A') }})"
-#       - "  MAC          : {{ guest_configs[guest_member].interfaces[pro_seg].mac | default('N/A') }}"
-#       - "  Device Name  : {{ guest_configs[guest_member].interfaces[pro_seg].devname | default('N/A') }}"
-#       - "  IP           : {{ guest_configs[guest_member].interfaces[pro_seg].ip | default('N/A') }}"
-#       - "--------------------------------------------------------"
-#       - "PROVISION NETWORK"
-#       - "  Name/CIDR    : {{ guest_configs[guest_member].interfaces[cld_seg].name | default('N/A') }} ({{ guest_configs[guest_member].interfaces[cld_seg].cidr | default('N/A') }})"
-#       - "  MAC          : {{ guest_configs[guest_member].interfaces[cld_seg].mac | default('N/A') }}"
-#       - "  Device Name  : {{ guest_configs[guest_member].interfaces[cld_seg].devname | default('N/A') }}"
-#       - "  IP           : {{ guest_configs[guest_member].interfaces[cld_seg].ip | default('N/A') }}"
-#       - "--------------------------------------------------------"
-#       - "NAT NETWORK {{ nat_seg }}"
-#       - "  CIDR         : {{ guest_configs[guest_member].interfaces[nat_seg].cidr | default('N/A') }}"
-     
+    
 - name: Set nat filters for {{ guest_member }}
   set_fact:
     nat_filters: "{{ guest_configs[guest_member].interfaces[net_maintenance].cidr.split('.')[0] | int }}"
@@ -121,30 +107,3 @@
     - reachable_octet == filter_octet
     - interface_ip_octet == filter_octet
 
-# when: 
-
-#     - guest_configs[guest_member].reachable_ip is not defined or "172.16." not in guest_configs[guest_member].reachable_ip
-#     - item.value.devname is defined and item.value.devname != 'N/A'
-  
-
-
-# # - name: "Start up {{ guest_member }} nics on guest"
-# #   become: false
-# #   vars:
-# #     devname: "{{ item.value.devname | default('N/A') }}"
-# #   shell: |
-# #      ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa core@{{ guest_configs[guest_member].reachable_ip }} "
-# #        if [ '{{ devname }}' != 'N/A' ]; then
-# #          sudo nmcli con mod '{{ devname }}' connection.autoconnect yes || true
-# #          sudo nmcli con up '{{ devname }}' || true
-# #          sleep 5
-# #        fi"
-# #   loop: "{{ guest_configs[guest_member].interfaces | dict2items }}"
-# #   when: 
-# #     - item.value.devname is defined 
-# #     - item.value.devname != 'N/A'
-# #     - guest_configs[guest_member].reachable_ip is defined
-
-# # - name: enable nics for {{ guest_member }} if not running
-# #   shell: "for i in $(virsh domiflist helper |grep vnet|awk '{print $1}'|tr "\n" " "); do virsh domif-setlink helper $i up; done{{ guest_member }}"
-# #   when: "'running' not in vm_state.stdout" 
