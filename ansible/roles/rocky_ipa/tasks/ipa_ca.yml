@@ -3,7 +3,7 @@
 - name: Enforce IPA DNS Resolution
   become: yes
   block:
-    - name: "DNS Prep - Test Master DNS Response"
+    - name: "DNS Prep - Test Master DNS Response from {{ ipa_master }} @ {{ ipa_master_ip }}"
       # We test if the MASTER is responding to DNS queries before we switch
       ansible.builtin.command: "nslookup {{ ipa_master }} {{ ipa_master_ip }}"
       register: dns_test
