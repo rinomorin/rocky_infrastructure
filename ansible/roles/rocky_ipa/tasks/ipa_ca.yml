@@ -3,7 +3,7 @@
 - 
 - name: Check variables
   debug:
-    msg: 
+    msg: |
       - "ipa_dm_password {{ ipa_dm_password }}"
       - "ipa_admin_password {{ ipa_admin_password }}"
       - "ipa_master {{ ipa_master }}"
