@@ -31,7 +31,7 @@
   become: yes
   shell: |
     echo search {{ search_domain }} > /etc/resolv.conf
-    eco nameserver nameserver_ip >> /etc/resolv.conf
+    echo nameserver nameserver_ip >> /etc/resolv.conf
 
 - name: Remote - Verify DNS resolution (Checks Port 53)
   command: "host remotecheck.{{ ipa_domain }}"
