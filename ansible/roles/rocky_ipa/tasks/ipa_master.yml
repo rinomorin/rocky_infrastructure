@@ -20,7 +20,7 @@
       --auto-forwarders \
       --setup-dns
   when: 
-    - not ipa_conf.stat.exists
+    # - not ipa_conf.stat.exists
     - ipa_stage == 'unconfigured'
     - ipa_type in ('primary', 'master','replica')
   # no_log: true
