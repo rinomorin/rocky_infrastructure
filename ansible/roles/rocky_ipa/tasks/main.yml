@@ -19,6 +19,10 @@
       - "host {{ inventory_hostname }}"
       - "stage {{ipa_stage}}"
       - "type {{ipa_type}}"
+      - "ipa_master_fqdn {{ipa_master_fqdn}}"
+      - "ipa_master_ip {{ipa_master_ip}}"
+      - "controller_node {{controller_node}}"
+      - "ipa_continue {{ipa_continue}}"
   
 - name: Initial, Health & Recovery Self-healing
   block:
@@ -34,11 +38,19 @@
     ansible.builtin.include_tasks: check_status.yml
     when: ipa_install_result.changed | bool
 
-  - debug:
-      msg: "ipa_stage {{ipa_stage}} and ipa_type {{ipa_type}}"
+  - name: What is check_status
+    debug:
+      msg: |
+        - "host {{ inventory_hostname }}"
+        - "stage {{ipa_stage}}"
+        - "type {{ipa_type}}"
+        - "ipa_master_fqdn {{ipa_master_fqdn}}"
+        - "ipa_master_ip {{ipa_master_ip}}"
+        - "controller_node {{controller_node}}"
+        - "ipa_continue {{ipa_continue}}"
 
   - name: Process Stage 2 - Primary host Configuration
-    import_tasks: ipa_ca.yml
+    import_tasks: ipa_master.yml
     vars:
       ipa_domain: "{{ lookup('env', 'ipa_domain') |lower}}"
       ipa_realm:  "{{ lookup('env', 'ipa_domain') |upper}}"

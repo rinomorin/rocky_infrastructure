@@ -49,42 +49,6 @@
     ipa_zone: "{{ ca_hostname.split('.')[1:] | join('.')}}"
     dom_zone: "{{ ipa_master_host.split('.')[1:] | join('.')}}"
 
-- name: Ensure DNS Zones exist on Master
-  become: true
-  ansible.builtin.shell: |
-    echo '{{ ipa_admin_password }}' | kinit admin && \
-    ipa dnszone-add {{ ipa_zone }} --admin-email=admin@{{ ipa_zone }}
-  delegate_to: "{{ ipa_master_ip }}"
-  register: zone_add_out
-  failed_when: 
-    - zone_add_out.rc != 0 
-    - "'already exists' not in zone_add_out.stderr"
-  # FIXED: Match the registered variable name 'zone_add_out'
-  changed_when: 
-    - zone_add_out.rc == 0
-    - "'added zone' in zone_add_out.stdout"
-  when: 
-    - ipa_type == 'replica'
-    - ipa_stage == 'unconfigured'
-  # no_log: true  # Recommended now that we know it works to hide the admin password
-
-- name: "Ensure DNS Records exist for installation {{ inventory_hostname.split('.')[0] }}"
-  become: true
-  ansible.builtin.shell: |
-    echo '{{ ipa_admin_password }}' | kinit admin && \
-    ipa dnsrecord-add {{ ipa_domain }} {{ inventory_hostname.split('.')[0] }} --a-rec={{ ansible_host }}
-  delegate_to: "{{ ipa_master_ip }}"
-  register: dns_injection_out
-  # We refine the failure logic here
-  failed_when: 
-    - dns_injection_out.rc != 0 
-    - "'already exists' not in dns_injection_out.stderr"
-    - "'no modifications to be performed' not in dns_injection_out.stderr"
-  no_log: true 
-  when: 
-    - ipa_type == 'replica'
-    - ipa_stage == 'unconfigured'
-
 # --- STAGE 3: INSTALLATION LOGIC ---
 - name: Check variables
   debug:
@@ -105,133 +69,99 @@
     systemctl start rngd || true 
   when: ipa_stage == 'unconfigured'
 
-- name: Acquire Kerberos ticket for admin
-  command: echo '{{ ipa_admin_password }}' | kinit admin 
-  register: kinit_admin
-  changed_when: false
-  # no_log: true
-  when: 
-    - ipa_stage == 'unconfigured'
-    - ipa_type == 'replica'
+# - name: Configure IPA CA server (Initial Build)
+#   become: yes
+#   environment:
+#     PKI_TIMEOUT: "600" # Increase timeout to 10 minutes
+#   ansible.builtin.shell: |
+#     umask 022 && ipa-server-install \
+#       --unattended \
+#       --domain={{ ipa_domain | lower }} \
+#       --realm={{ ipa_realm }} \
+#       --ds-password='{{ ipa_dm_password }}' \
+#       --admin-password='{{ ipa_admin_password }}' \
+#       --hostname={{ ca_hostname }} \
+#       --setup-dns \
+#       --auto-forwarders \
+#       --auto-reverse \
+#       --allow-zone-overlap \
+#       --no-host-dns
+#   register: ipa_install_out
+#   when: 
+#     - ipa_stage == 'unconfigured'
+#     - ipa_role | default('primary') == 'primary'
 
-- name: Configure IPA CA server (Initial Build)
-  become: yes
-  environment:
-    PKI_TIMEOUT: "600" # Increase timeout to 10 minutes
-  ansible.builtin.shell: |
-    umask 022 && ipa-server-install \
-      --unattended \
-      --domain={{ ipa_domain | lower }} \
-      --realm={{ ipa_realm }} \
-      --ds-password='{{ ipa_dm_password }}' \
-      --admin-password='{{ ipa_admin_password }}' \
-      --hostname={{ ca_hostname }} \
-      --setup-dns \
-      --auto-forwarders \
-      --auto-reverse \
-      --allow-zone-overlap \
-      --no-host-dns
-  register: ipa_install_out
-  when: 
-    - ipa_stage == 'unconfigured'
-    - ipa_role | default('primary') == 'primary'
 
-- name: Configure IPA Secondary Replica (with CA)
-  become: yes
-  environment:
-    PKI_TIMEOUT: "600"
-  ansible.builtin.shell: |
-    update-ca-trust
-    echo "nameserver {{ ipa_master_ip }}" > /etc/resolv.conf
+# # --- STAGE 4: RECOVERY & HEALTH VERIFICATION ---
+# - name: Post-Config / Weekly Health Verification
+#   block:
+#     - name: Ensure ca.crt is in system trust
+#       ansible.builtin.shell: |
+#         cp /etc/ipa/ca.crt /etc/pki/ca-trust/source/anchors/
+#         update-ca-trust
+#       changed_when: false
 
-    umask 022 && ipa-replica-install \
-      --unattended \
-      --principal=admin \
-      --server={{ hostvars[groups['ipa'][0]].hostname }} \
-      --admin-password='{{ ipa_admin_password }}' \
-      --domain={{ ipa_domain | lower }} \
-      --realm={{ ipa_domain | upper}} \
-      --hostname={{ ca_hostname }} \
-      --setup-ca \
-      --setup-dns \
-      --no-forwarders \
-      --no-host-dns \
-      --skip-conncheck
-  register: ipa_replica_out
-  when: 
-    - ipa_stage == 'unconfigured'
-    - ipa_type == 'replica'
+#     - name: Acquire Kerberos ticket for host principal
+#       command: kinit -kt /etc/krb5.keytab "host/{{ ca_hostname }}@{{ ipa_domain | upper }}"
+#       changed_when: false
 
-# --- STAGE 4: RECOVERY & HEALTH VERIFICATION ---
-- name: Post-Config / Weekly Health Verification
-  block:
-    - name: Ensure ca.crt is in system trust
-      ansible.builtin.shell: |
-        cp /etc/ipa/ca.crt /etc/pki/ca-trust/source/anchors/
-        update-ca-trust
-      changed_when: false
+#     - name: Audit IPA related services (Systemd)
+#       ansible.builtin.systemd:
+#         name: "{{ item }}"
+#       loop:
+#         - ipa.service
+#         - "dirsrv@{{ ipa_domain | upper | replace('.', '-') }}"
+#         - krb5kdc.service
+#         - kadmin.service
+#         - pki-tomcatd@pki-tomcat.service
+#         - named-pkcs11.service
+#       register: service_audit
 
-    - name: Acquire Kerberos ticket for host principal
-      command: kinit -kt /etc/krb5.keytab "host/{{ ca_hostname }}@{{ ipa_domain | upper }}"
-      changed_when: false
+#     - name: Validate CA certificate format
+#       ansible.builtin.command: openssl x509 -in /etc/ipa/ca.crt -noout -text
+#       changed_when: false
 
-    - name: Audit IPA related services (Systemd)
-      ansible.builtin.systemd:
-        name: "{{ item }}"
-      loop:
-        - ipa.service
-        - "dirsrv@{{ ipa_domain | upper | replace('.', '-') }}"
-        - krb5kdc.service
-        - kadmin.service
-        - pki-tomcatd@pki-tomcat.service
-        - named-pkcs11.service
-      register: service_audit
+#     - name: Test LDAP (389) connectivity
+#       ansible.builtin.shell: "ldapsearch -x -H ldap://localhost:389 -b \"dc={{ ipa_domain | replace('.', ',dc=') }}\""
+#       register: ldap_389
+#       changed_when: false
 
-    - name: Validate CA certificate format
-      ansible.builtin.command: openssl x509 -in /etc/ipa/ca.crt -noout -text
-      changed_when: false
+#     - name: Test LDAPS (636) with DM Credentials
+#       ansible.builtin.shell: |
+#         ldapsearch -H ldaps://localhost:636 -D "cn=Directory Manager" \
+#         -w {{ ipa_dm_password }} -b "" -s base "(objectclass=*)"
+#       no_log: true
+#       changed_when: false
 
-    - name: Test LDAP (389) connectivity
-      ansible.builtin.shell: "ldapsearch -x -H ldap://localhost:389 -b \"dc={{ ipa_domain | replace('.', ',dc=') }}\""
-      register: ldap_389
-      changed_when: false
+#     - name: Test DNS Resolution (Internal)
+#       ansible.builtin.shell: "dig +short @127.0.0.1 {{ ca_hostname }}"
+#       register: dns_test
+#       failed_when: dns_test.stdout == ""
+#       changed_when: false
 
-    - name: Test LDAPS (636) with DM Credentials
-      ansible.builtin.shell: |
-        ldapsearch -H ldaps://localhost:636 -D "cn=Directory Manager" \
-        -w {{ ipa_dm_password }} -b "" -s base "(objectclass=*)"
-      no_log: true
-      changed_when: false
+#     - name: Verify Kerberos kinit for Admin
+#       ansible.builtin.expect:
+#         command: "kinit admin@{{ ipa_domain | upper }}"
+#         responses:
+#           '(?i)Password for admin.*': "{{ ipa_admin_password }}"
+#       no_log: true
+#       changed_when: false
 
-    - name: Test DNS Resolution (Internal)
-      ansible.builtin.shell: "dig +short @127.0.0.1 {{ ca_hostname }}"
-      register: dns_test
-      failed_when: dns_test.stdout == ""
-      changed_when: false
+#     # --- DNS DRIFT RECONCILIATION ---
+#     - name: Ensure Infrastructure DNS Records (Apex & Host)
+#       ansible.builtin.command: >
+#         ipa dnsrecord-add {{ ipa_domain }} {{ item.name }} --a-rec={{ item.ip }}
+#       loop:
+#         - { name: "{{ ipa_master }}", ip: "{{ ipa_master_ip }}" }
+#         - { name: "@", ip: "{{ ipa_master_ip }}" }
+#       register: dns_sync
+#       failed_when: false
+#       changed_when: "'added' in dns_sync.stdout"
 
-    - name: Verify Kerberos kinit for Admin
-      ansible.builtin.expect:
-        command: "kinit admin@{{ ipa_domain | upper }}"
-        responses:
-          '(?i)Password for admin.*': "{{ ipa_admin_password }}"
-      no_log: true
-      changed_when: false
+#   # Run verification if we just installed OR if we were already running
+#   when: >
+#     ipa_stage in ['running', 'configured'] or 
+#     (ipa_install_out is defined and ipa_install_out is not failed)
 
-    # --- DNS DRIFT RECONCILIATION ---
-    - name: Ensure Infrastructure DNS Records (Apex & Host)
-      ansible.builtin.command: >
-        ipa dnsrecord-add {{ ipa_domain }} {{ item.name }} --a-rec={{ item.ip }}
-      loop:
-        - { name: "{{ ipa_master }}", ip: "{{ ipa_master_ip }}" }
-        - { name: "@", ip: "{{ ipa_master_ip }}" }
-      register: dns_sync
-      failed_when: false
-      changed_when: "'added' in dns_sync.stdout"
-
-  # Run verification if we just installed OR if we were already running
-  when: >
-    ipa_stage in ['running', 'configured'] or 
-    (ipa_install_out is defined and ipa_install_out is not failed)
-
-- name: Refresh Discovery Facts
-  ansible.builtin.include_tasks: check_status.yml
+# - name: Refresh Discovery Facts
+#   ansible.builtin.include_tasks: check_status.yml

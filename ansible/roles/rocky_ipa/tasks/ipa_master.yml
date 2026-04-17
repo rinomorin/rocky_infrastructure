@@ -1,0 +1,41 @@
+- name: Check if IPA default.conf exists
+  stat:
+    path: /etc/ipa/default.conf
+  register: ipa_conf
+
+# --- Install only if not configured ---
+- name: Configure IPA server on {{ ca_hostname }} (this can takes a while - 10 min+)
+  become: yes
+  shell: |
+    umask 022 && ipa-server-install \
+      --unattended \
+      --domain={{ ipa_domain | lower }} \
+      --realm={{ ipa_domain | upper }} \
+      --ds-password='{{ ipa_dm_password }}' \
+      --admin-password='{{ ipa_admin_password }}' \
+      --setup-adtrust \
+      --setup-kra \
+      --hostname={{ ca_hostname }} \
+      --auto-reverse \
+      --auto-forwarders \
+      --setup-dns
+  when: 
+    - not ipa_conf.stat.exists
+    - ipa_stage == 'unconfigured'
+    - ipa_type in ('primary', 'master','replica')
+  # no_log: true
+
+- name: create certs from cacert.p12
+  become: yes
+  shell: |
+    # Extract only the private key
+    openssl pkcs12 -in /root/cacert.p12 -nocerts -nodes -out /root/serverkey.pem -clcerts -passin pass:{{ ipa_dm_password }}
+    # Extract only the certificate
+    openssl pkcs12 -in /root/cacert.p12 -clcerts -nokeys -out /root/servercert.pem -passin pass:{{ ipa_dm_password }}
+  no_log: true
+
+- name: copy ca.crt to trusted
+  become: yes
+  shell: |
+    cp /etc/ipa/ca.crt /etc/pki/ca-trust/source/anchors/
+    update-ca-trust
