@@ -20,7 +20,7 @@
 - name: see results
   debug:
     msg:
-     - "ipa_service_check {{ ipa_service_check.stdout }}"
+     - "ipa_service_check {{ ipa_service_check }}"
      - "ipa_conf_file {{ ipa_conf_file.stat.exists }}"
      - "rpm_check {{ rpm_check.rc }}"
 
