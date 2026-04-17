@@ -12,7 +12,6 @@
       failed_when: 
         - dns_create.rc != 0 
         - "'already exists' not in dns_create.stderr"
-        - "'no modifications to be performed' not in dns_create.stderr"
 
     - name: Master - Create test User
       command: "ipa user-add remoteuser --first=Remote --last=Test --password"
@@ -21,21 +20,15 @@
       register: user_create
       failed_when: user_create.rc != 0 and 'already exists' not in user_create.stderr
 
-    - name: Master - Clear Password Expiry (Prevent kinit failure)
-      # This makes the password "permanent" so remote kinit doesn't prompt for change
+    - name: Master - Force Password Permanent
+      # Running this twice or using user-mod to set the password again 
+      # usually bypasses the "Expired" flag in FreeIPA
       shell: "echo '{{ ipa_test_user_password }}' | ipa user-mod remoteuser --password"
       args:
         stdin: "{{ ipa_test_user_password }}\n"
-      when: user_create.changed
+      when: user_create.changed or "'Password expired' in krb_raw_check.stderr | default('')"
 
 # Step 2: Delegate verification
-- name: set dns in resolve (temporary)
-  delegate_to: "{{ next_host }}"
-  become: yes
-  shell: |
-    echo search "{{ search_domain }}" > /etc/resolv.conf
-    echo nameserver "{{ nameserver_ip }}" >> /etc/resolv.conf
-
 - name: Remote - Verify DNS resolution
   command: "host remotecheck.{{ search_domain }}"
   delegate_to: "{{ next_host }}"
@@ -49,7 +42,8 @@
   delegate_to: "{{ next_host }}"
   register: ldap_raw_check
 
-- name: Remote - Raw Kerberos Check (Bypass local config)
+- name: Remote - Raw Kerberos Check
+  # We use the -pw argument or STDIN, but let's try setting the env properly
   shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
   environment:
     KRB5_CONFIG: "/dev/null" 
@@ -59,8 +53,9 @@
   ignore_errors: yes
 
 - name: Remote - Test Web UI Reachability
+  # We use the master's IP or specific FQDN to avoid root domain resolution issues
   uri:
-    url: "https://{{ search_domain }}/ipa/ui/"
+    url: "https://{{ ipa_master_fqdn }}/ipa/ui/"
     validate_certs: no
     status_code: 200
   delegate_to: "{{ next_host }}"
