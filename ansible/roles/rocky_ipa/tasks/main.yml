@@ -26,7 +26,10 @@
   # --- STAGE 1: Install RPMs & Prepare ---
   - name: Process Stage 1 - Installation
     import_tasks: install_ipa.yml
-    when: ipa_stage == 'required'
+    when: 
+      - ipa_stage == 'required'
+      - not defined ipa_continue
+
 
   - name: Dynamic Re-check
     ansible.builtin.include_tasks: check_status.yml
