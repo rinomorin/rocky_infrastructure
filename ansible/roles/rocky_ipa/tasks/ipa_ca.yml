@@ -149,12 +149,9 @@
       --realm={{ ipa_domain | upper}} \
       --hostname={{ ca_hostname }} \
       --setup-ca \
-      --setup-kra \
-      --auto-reverse \
-      --auto-forwarders \
       --setup-dns \
-      # --no-forwarders \
-      # --no-host-dns
+      --no-forwarders \
+      --no-host-dns
   register: ipa_replica_out
   when: 
     - ipa_stage == 'unconfigured'
