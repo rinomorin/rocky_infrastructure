@@ -99,3 +99,11 @@
         ansible.builtin.shell: "mv /etc/resolv.conf.bak /etc/resolv.conf"
         ignore_errors: yes
 
+# --- STEP 3: Formatted Results ---
+- name: "Verification Summary Results"
+  debug:
+    msg: 
+      - "DNS {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if dns_verify.rc == 0 else 'FAILED' }}"
+      - "LDAP {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if ldap_verify.rc == 0 else 'FAILED' }}"
+      - "KRBR {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if krb_verify.rc == 0 else 'FAILED' }}"
+      - "SSSD {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if sssd_verify.rc == 0 else 'FAILED' }}"
