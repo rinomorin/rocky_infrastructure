@@ -151,7 +151,8 @@
       --setup-ca \
       --setup-dns \
       --no-forwarders \
-      --no-host-dns
+      --no-host-dns \
+      --skip-conncheck
   register: ipa_replica_out
   when: 
     - ipa_stage == 'unconfigured'
