@@ -24,11 +24,11 @@
         - "'already exists' not in user_create.stderr"
 
     - name: Master - Administrative Password Bypass
-      # This clears the "must change password" flag so remote kinit works immediately
-      command: "ipa principal-mod remoteuser --setattr krbPasswordExpiration=20300101000000Z"
-      when: user_create.changed or user_create.rc == 0
+      # Use user-mod to set the Kerberos expiration attribute directly
+      command: "ipa user-mod remoteuser --setattr krbPasswordExpiration=20300101000000Z"
+      when: user_create.rc == 0 or 'already exists' in user_create.stderr
 
-# Step 2: Delegate verification to Remote Host (.11)
+# Step 2: Delegate verification to Remote Host
 - name: Remote - Verify DNS resolution
   command: "host remotecheck.{{ search_domain }}"
   delegate_to: "{{ next_host }}"
@@ -43,7 +43,7 @@
   register: ldap_raw_check
 
 - name: Remote - Raw Kerberos Check
-  # Now that the flag is cleared on the Master, this should pass
+  # With the expiration attribute set to 2030, kinit will no longer prompt for a change
   shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
   environment:
     KRB5_CONFIG: "/dev/null" 
@@ -53,7 +53,6 @@
   ignore_errors: yes
 
 - name: Remote - Test Web UI Reachability
-  # Using the Master's FQDN to ensure DNS finds the web server
   uri:
     url: "https://{{ ipa_master_fqdn }}/ipa/ui/"
     validate_certs: no
@@ -70,8 +69,6 @@
       - "LDAP Reachability : {{ 'ok' if ldap_raw_check.rc == 0 else 'FAILED' }}"
       - "KRBR Auth Check  : {{ 'ok' if krb_raw_check.rc == 0 else 'FAILED' }}"
       - "WEB  UI Check    : {{ 'ok' if (web_check.status | default(-1)) == 200 else 'FAILED' }}"
-
-
 - name: Remote - Clear Security Artifacts
   delegate_to: "{{ next_host }}"
   become: yes
