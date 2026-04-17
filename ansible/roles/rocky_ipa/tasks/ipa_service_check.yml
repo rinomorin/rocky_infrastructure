@@ -6,7 +6,7 @@
     - name: Master - Authenticate admin
       shell: "echo '{{ ipa_admin_password }}' | kinit admin@{{ search_domain | upper }}"
       changed_when: false
-      # no_log: true # Masking the Master Admin Password
+      no_log: true # Masking the Master Admin Password
 
     - name: Master - Create test DNS record (Checks Port 53)
       command: "ipa dnsrecord-add {{ search_domain }} remotecheck --a-rec=1.2.3.4"
@@ -39,15 +39,21 @@
   register: dns_verify
   failed_when: "'1.2.3.4' not in dns_verify.stdout"
 
+- name: Remote - Force SSSD to see new Master data
+  delegate_to: "{{ next_host }}"
+  become: yes
+  ansible.builtin.command: "sss_cache -E"
+  changed_when: false
+
 - name: Remote - Verify Identity visibility (Checks Ports 389/636)
   command: "id remoteuser"
   delegate_to: "{{ next_host }}"
-  register: id_verify
+  register: id_verify  # Changed back to id_verify to match your task name
 
 - name: Remote - Test Kerberos Auth (Checks Port 88)
-  # Proves the remote host can get a TGT from the Master
   shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser"
   delegate_to: "{{ next_host }}"
+  register: krb_verify # Ensure this matches your summary
   changed_when: false
 
 - name: Remote - Test Web/OCSP Reachability (Checks Ports 80/443)
@@ -106,7 +112,7 @@
 - name: "Verification Summary Results"
   debug:
     msg: 
-      - "DNS {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if dns_verify.rc == 0 else 'FAILED' }}"
-      - "LDAP {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if ldap_verify.rc == 0 else 'FAILED' }}"
+      - "DNS  {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if dns_verify.rc == 0 else 'FAILED' }}"
+      - "LDAP {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if id_verify.rc == 0 else 'FAILED' }}"
       - "KRBR {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if krb_verify.rc == 0 else 'FAILED' }}"
-      - "SSSD {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if sssd_verify.rc == 0 else 'FAILED' }}"
+      - "SSSD {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if id_verify.rc == 0 else 'FAILED' }}"
