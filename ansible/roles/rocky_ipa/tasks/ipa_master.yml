@@ -35,7 +35,7 @@
     
     # Extract only the certificate using legacy and skipping MAC verification
     openssl pkcs12 -in /root/cacert.p12 -clcerts -nokeys -out /root/servercert.pem -passin pass:{{ ipa_dm_password }} -legacy -nomacver
-  no_log: true
+  # no_log: true
 
 
 - name: copy ca.crt to trusted
