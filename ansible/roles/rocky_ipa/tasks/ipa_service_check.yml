@@ -4,7 +4,7 @@
   block:
     # Step 1: Setup test values on the Master
     - name: Master - Authenticate admin
-      shell: "echo '{{ ipa_admin_password }}' | kinit admin"
+      shell: "echo '{{ ipa_admin_password }}' | kinit admin@{{ search_domain | upper }}""
       changed_when: false
       # no_log: true # Masking the Master Admin Password
 
