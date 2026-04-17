@@ -45,10 +45,14 @@
   ansible.builtin.command: "sss_cache -E"
   changed_when: false
 
+- name: Remote - Settling delay for LDAP replication
+  ansible.builtin.pause:
+    seconds: 5
+
 - name: Remote - Verify Identity visibility (Checks Ports 389/636)
-  command: "id remoteuser"
+  command: "id remoteuser@{{ search_domain }}"
   delegate_to: "{{ next_host }}"
-  register: id_verify  # Changed back to id_verify to match your task name
+  register: id_verify
 
 - name: Remote - Test Kerberos Auth (Checks Port 88)
   shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser"
