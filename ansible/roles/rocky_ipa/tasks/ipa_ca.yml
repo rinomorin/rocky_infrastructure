@@ -137,13 +137,15 @@
       --principal=admin \
       --admin-password='{{ ipa_admin_password }}' \
       --server={{ ipa_primary_fqdn }} \
-      --domain={{ ipa_domain | lower }} \
-      --realm={{ ipa_domain | upper}} \
+      --domain={{ ipa_domain }} \
+      --realm={{ ipa_realm }} \
       --hostname={{ ca_hostname }} \
       --setup-ca \
       --setup-dns \
       --no-forwarders \
-      --no-host-dns
+      --no-host-dns \
+      --skip-conncheck \
+      --ignore-topology-errors
 
 - name: Configure IPA Secondary Replica (with CA)
   become: yes
@@ -152,6 +154,7 @@
     # Tell LDAP client to be more patient during the initial sync
     LDAP_TIMEOUT: "600" 
   ansible.builtin.shell: |
+    cat /etc/resolv.conf
     # Force CA trust refresh one more time
     update-ca-trust
     umask 022 && ipa-replica-install \
