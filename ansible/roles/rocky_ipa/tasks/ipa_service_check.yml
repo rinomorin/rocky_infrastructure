@@ -117,6 +117,6 @@
   debug:
     msg: 
       - "DNS  {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if dns_verify.rc == 0 else 'FAILED' }}"
-      - "LDAP {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if id_verify.rc == 0 else 'FAILED' }}"
+      - "LDAP {{ search_domain }} from {{ next_host }} : {{ 'ok' if id_verify.rc == 0 else 'FAILED' }}"
       - "KRBR {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if krb_verify.rc == 0 else 'FAILED' }}"
       - "SSSD {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if id_verify.rc == 0 else 'FAILED' }}"
