@@ -24,45 +24,16 @@
         - "'already exists' not in user_create.stderr"
 
     - name: Master - Administrative Password Bypass
-      # Use user-mod to set the Kerberos expiration attribute directly
       command: "ipa user-mod remoteuser --setattr krbPasswordExpiration=20300101000000Z"
+      register: pass_bypass
+      # Ignore the error if the attribute is already set to this value
+      failed_when:
+        - pass_bypass.rc != 0
+        - "'no modifications' not in pass_bypass.stderr"
       when: user_create.rc == 0 or 'already exists' in user_create.stderr
 
 # Step 2: Delegate verification to Remote Host
-- name: Remote - Verify DNS resolution
-  command: "host remotecheck.{{ search_domain }}"
-  delegate_to: "{{ next_host }}"
-  register: dns_verify
-
-- name: Remote - Raw LDAP Check (Bypass SSSD)
-  command: >
-    ldapsearch -x -H ldap://{{ nameserver_ip }} 
-    -b "cn=users,cn=accounts,dc=home,dc=morinsoft,dc=ca" 
-    "uid=remoteuser"
-  delegate_to: "{{ next_host }}"
-  register: ldap_raw_check
-
-- name: Remote - Raw Kerberos Check
-  # With the expiration attribute set to 2030, kinit will no longer prompt for a change
-  shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
-  environment:
-    KRB5_CONFIG: "/dev/null" 
-    KRB5_KDC: "{{ nameserver_ip }}"
-  delegate_to: "{{ next_host }}"
-  register: krb_raw_check
-  ignore_errors: yes
-
-- name: Remote - Test Web UI Reachability
-  uri:
-    url: "https://{{ ipa_master_fqdn }}/ipa/ui/"
-    validate_certs: no
-    status_code: 200
-  delegate_to: "{{ next_host }}"
-  register: web_check
-  ignore_errors: yes
-
-# --- STEP 2: Pre-Setup Verification ---
-- name: Remote - Securely override DNS with backup
+- name: Remote - DNS Setup with Backup
   delegate_to: "{{ next_host }}"
   become: yes
   ansible.builtin.copy:
@@ -70,7 +41,7 @@
       search {{ search_domain }}
       nameserver {{ nameserver_ip }}
     dest: /etc/resolv.conf
-    backup: yes # This creates the .bak file for us automatically
+    backup: yes
   register: dns_backup_info
 
 - name: Remote - Verify DNS resolution
@@ -81,7 +52,7 @@
 - name: Remote - Raw LDAP Check
   command: >
     ldapsearch -x -H ldap://{{ nameserver_ip }} 
-    -b "cn=users,cn=accounts,{{ ipa_base_dn | default('dc=example,dc=com') }}" 
+    -b "cn=users,cn=accounts,dc=home,dc=morinsoft,dc=ca" 
     "uid=remoteuser"
   delegate_to: "{{ next_host }}"
   register: ldap_raw_check
@@ -104,15 +75,7 @@
   register: web_check
   ignore_errors: yes
 
-# --- CLEANUP ---
-- name: Remote - Restore Original DNS
-  delegate_to: "{{ next_host }}"
-  become: yes
-  shell: "mv {{ dns_backup_info.backup_file }} /etc/resolv.conf"
-  when: dns_backup_info.backup_file is defined
-  ignore_errors: yes
-
-# --- STEP 3: Formatted Results ---
+# --- STEP 3: Results & Cleanup ---
 - name: "Verification Summary Results"
   debug:
     msg: 
@@ -120,20 +83,17 @@
       - "LDAP Reachability : {{ 'ok' if ldap_raw_check.rc == 0 else 'FAILED' }}"
       - "KRBR Auth Check  : {{ 'ok' if krb_raw_check.rc == 0 else 'FAILED' }}"
       - "WEB  UI Check    : {{ 'ok' if (web_check.status | default(-1)) == 200 else 'FAILED' }}"
-- name: Remote - Clear Security Artifacts
+
+- name: Cleanup Operations
   delegate_to: "{{ next_host }}"
   become: yes
   block:
-    - name: Remote - Destroy Test Kerberos Tickets
-      ansible.builtin.command: "kdestroy -A"
-      changed_when: false
-
-    - name: Remote - Flush SSSD Cache
-      # This ensures the 'id remoteuser' check won't work after the user is deleted
-      ansible.builtin.command: "sss_cache -E"
-      changed_when: false
-      ignore_errors: yes
-
     - name: Remote - Restore Original DNS
-      ansible.builtin.shell: "mv /etc/resolv.conf.bak /etc/resolv.conf"
+      # Uses the specific backup file name created by the copy task
+      shell: "mv {{ dns_backup_info.backup_file }} /etc/resolv.conf"
+      when: dns_backup_info.backup_file is defined
       ignore_errors: yes
+
+    - name: Remote - Clear Tickets
+      command: "kdestroy -A"
+      changed_when: false
