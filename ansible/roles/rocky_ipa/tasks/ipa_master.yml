@@ -6,23 +6,25 @@
 # --- Install only if not configured ---
 - name: Configure IPA server on {{ ca_hostname }} (this can takes a while - 10 min+)
   become: yes
-  shell: |
+  environment:
+    PKI_TIMEOUT: "600" # Increase timeout to 10 minutes
+  ansible.builtin.shell: |
     umask 022 && ipa-server-install \
       --unattended \
       --domain={{ ipa_domain | lower }} \
-      --realm={{ ipa_domain | upper }} \
+      --realm={{ ipa_realm }} \
       --ds-password='{{ ipa_dm_password }}' \
       --admin-password='{{ ipa_admin_password }}' \
-      --setup-adtrust \
-      --setup-kra \
       --hostname={{ ca_hostname }} \
-      --auto-reverse \
+      --setup-dns \
       --auto-forwarders \
-      --setup-dns
+      --auto-reverse \
+      --allow-zone-overlap \
+      --no-host-dns
+  register: ipa_install_out
   when: 
-    # - not ipa_conf.stat.exists
     - ipa_stage == 'unconfigured'
-    - ipa_type in ('primary', 'master','replica')
+    - ipa_role | default('primary') == 'primary'
   # no_log: true
 
 - name: create certs from cacert.p12
