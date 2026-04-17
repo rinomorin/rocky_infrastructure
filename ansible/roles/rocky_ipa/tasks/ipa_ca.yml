@@ -136,7 +136,7 @@
       --unattended \
       --principal=admin \
       --admin-password='{{ ipa_admin_password }}' \
-      --server={{ hostvars[groups['ipa_masters'][0]].inventory_hostname }} \
+      --server={{ hostvars[groups['ipa'][0]].inventory_hostname }} \
       --domain={{ ipa_domain }} \
       --realm={{ ipa_realm }} \
       --hostname={{ ca_hostname }} \
@@ -156,7 +156,7 @@
       --unattended \
       --principal=admin \
       --admin-password='{{ ipa_admin_password }}' \
-      --server={{ hostvars[groups['ipa_masters'][0]].inventory_hostname }} \
+      --server={{ hostvars[groups['ipa'][0]].inventory_hostname }} \
       --domain={{ ipa_domain }} \
       --realm={{ ipa_realm }} \
       --hostname={{ ca_hostname }} \
