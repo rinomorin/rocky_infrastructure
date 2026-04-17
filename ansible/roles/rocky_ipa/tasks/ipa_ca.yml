@@ -144,6 +144,8 @@
     umask 022 && ipa-replica-install \
       --unattended \
       --server={{ hostvars[groups['ipa'][0]].inventory_hostname }} \
+      --ds-password='{{ ipa_dm_password }}' \
+      --admin-password='{{ ipa_admin_password }}' \
       --domain={{ ipa_domain | lower }} \
       --realm={{ ipa_domain | upper}} \
       --hostname={{ ca_hostname }} \
