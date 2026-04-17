@@ -148,25 +148,25 @@
 - name: Configure IPA Secondary Replica (with CA)
   become: yes
   environment:
-    PKI_TIMEOUT: "600"
+    PKI_TIMEOUT: "900"
   ansible.builtin.shell: |
     umask 022 && ipa-replica-install \
       --unattended \
       --principal=admin \
       --admin-password='{{ ipa_admin_password }}' \
       --server={{ ipa_primary_fqdn }} \
-      --domain={{ ipa_domain | lower }} \
-      --realm={{ ipa_domain | upper}} \
+      --domain={{ ipa_domain }} \
+      --realm={{ ipa_realm }} \
       --hostname={{ ca_hostname }} \
       --setup-ca \
       --setup-dns \
       --no-forwarders \
-      --no-host-dns
+      --no-host-dns \
+      --skip-conncheck
   register: ipa_replica_out
   when: 
     - ipa_stage == 'unconfigured'
     - ipa_type == 'replica'
-
 # --- STAGE 4: RECOVERY & HEALTH VERIFICATION ---
 - name: Post-Config / Weekly Health Verification
   block:
