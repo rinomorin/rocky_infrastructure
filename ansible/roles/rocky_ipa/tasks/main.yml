@@ -67,7 +67,7 @@
 
       - name: Dynamic Re-check
           ansible.builtin.include_tasks: check_status.yml
-          when: ipa_install_result.changed | bool
+        when: ipa_install_result.changed | bool
 
       - name: What is check_status
         debug:
