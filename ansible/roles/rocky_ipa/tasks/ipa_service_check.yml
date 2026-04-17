@@ -53,13 +53,16 @@
 
   # --- STEP 3: COMPREHENSIVE CLEANUP ---
 - name: Master - Remove test entries
+  delegate_to: "{{ next_host }}"
   block:
     - name: Remove test DNS
       command: "ipa dnsrecord-del {{ search_domain }} remotecheck --a-rec=1.2.3.4"
+      failed_when: false
     - name: Remove test User
       command: "ipa user-del remoteuser"
-  delegate_to: "{{ next_host }}"
-  failed_when: false
+      failed_when: false
+  
+  
 
 - name: Remote - Clear Security Artifacts
   delegate_to: "{{ next_host }}"
