@@ -55,12 +55,20 @@
 
 - name: Remote - Settling delay for LDAP replication
   ansible.builtin.pause:
-    seconds: 5
+    seconds: 20  # Give replication a real chance to sync
 
-- name: Remote - Verify Identity visibility (Checks Ports 389/636)
-  command: "id remoteuser@{{ search_domain }}"
+- name: Remote - Verify Identity visibility
+  # Try without the @domain first, as SSSD on IPA usually defaults to its own domain
+  command: "id remoteuser"
   delegate_to: "{{ next_host }}"
   register: id_verify
+  ignore_errors: yes
+
+- name: Remote - Verify Identity visibility (Retry with domain if first failed)
+  command: "id remoteuser@{{ search_domain }}"
+  delegate_to: "{{ next_host }}"
+  register: id_verify_qualified
+  when: id_verify.rc != 0
 
 - name: Remote - Test Kerberos Auth (Checks Port 88)
   shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser"
