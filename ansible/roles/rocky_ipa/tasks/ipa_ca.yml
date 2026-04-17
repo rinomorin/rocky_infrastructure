@@ -143,7 +143,7 @@
   ansible.builtin.shell: |
     umask 022 && ipa-replica-install \
       --unattended \
-      --server={{ hostvars[groups['ipa'][0]].inventory_hostname }} \
+      --server={{ hostvars[groups['ipa'][0]].hostname }} \
       --admin-password='{{ ipa_admin_password }}' \
       --domain={{ ipa_domain | lower }} \
       --realm={{ ipa_domain | upper}} \
