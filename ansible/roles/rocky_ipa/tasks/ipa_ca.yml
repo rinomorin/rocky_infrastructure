@@ -141,8 +141,10 @@
   environment:
     PKI_TIMEOUT: "600"
   ansible.builtin.shell: |
+    update-ca-trust
     umask 022 && ipa-replica-install \
       --unattended \
+      --principal=admin \
       --server={{ hostvars[groups['ipa'][0]].hostname }} \
       --admin-password='{{ ipa_admin_password }}' \
       --domain={{ ipa_domain | lower }} \
