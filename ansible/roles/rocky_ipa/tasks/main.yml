@@ -88,7 +88,7 @@
           search_domain: "{{ lookup('env', 'ipa_domain') |lower}}"
           nameserver_ip: "{{ ipa_master_ip }} "
           ipa_master_fqdb: "{{ hostvars[groups['ipa'][0]]['hostname'] }}"
-          next_hope: "{{ hostvars[groups['ipa'][1]]['hostname'] }}"
+          next_host: "{{ hostvars[groups['ipa'][1]]['hostname'] }}"
         when: 
           - ipa_stage == 'unconfigured'
 
