@@ -15,6 +15,14 @@
   failed_when: false
   changed_when: false
 
+- name: see results
+  debug:
+    msg:
+     - "ipa_service_check {{ ipa_service_check.stdout }}"
+     - "ipa_conf_file {{ ipa_conf_file.stat.exists }}"
+     - "rpm_check {{ rpm_check.rc }}"
+
+
 - name: "Determine IPA Stage"
   ansible.builtin.set_fact:
     ipa_stage: "{{ item.stage }}"
@@ -34,4 +42,4 @@
       condition: "{{ ipa_conf_file.stat.exists and 'IPA is not configured' not in ipa_service_check.stdout }}"
     
     - stage: "running"
-      condition: "{{ ipa_conf_file.stat.exists and 'IPA is not configured' in ipa_service_check.stdout }}"
+      condition: "{{ ipa_conf_file.stat.exists and 'IPA is not configured' not in ipa_service_check.stdout }}"
