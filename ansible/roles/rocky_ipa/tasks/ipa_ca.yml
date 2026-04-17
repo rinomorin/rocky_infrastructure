@@ -163,7 +163,7 @@
       --unattended \
       --principal=admin \
       --admin-password='{{ ipa_admin_password }}' \
-      --server={{ ipa_primary_fqdn }} \
+      --server={{ groups('ca')[0].hostname }} \
       --domain={{ ipa_domain }} \
       --realm={{ ipa_realm }} \
       --hostname={{ ca_hostname }} \
