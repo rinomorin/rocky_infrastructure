@@ -47,6 +47,7 @@
 - name: get host zone
   set_fact:
     ipa_zone: "{{ ca_hostname.split('.')[1:] | join('.')}}"
+    dom_zone: "{{ ipa_master_host.split('.')[1:] | join('.')}}"
 
 - name: Ensure DNS Zones exist on Master
   become: true
@@ -137,8 +138,8 @@
       --principal=admin \
       --admin-password='{{ ipa_admin_password }}' \
       --server={{ ipa_primary_fqdn }} \
-      --domain={{ ca_hostname.split('.')[1:] | join('.') | lower }} \
-      --realm={{ ipa_realm }} \
+      --domain={{ dom_zone | lower }} \
+      --realm={{ dom_zone | upper}} \
       --hostname={{ ca_hostname }} \
       --setup-ca \
       --setup-dns \
