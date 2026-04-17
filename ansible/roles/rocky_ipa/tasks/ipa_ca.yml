@@ -44,11 +44,15 @@
     - ipa_stage == 'unconfigured'
 
 # --- STAGE 2: DNS INJECTION (PRE-INSTALL) ---
+- name: get host zone
+  set_fact:
+    ipa_zone: "{{ ca_hostname.split('.')[1:] | join('.')}}"
+
 - name: Ensure DNS Zones exist on Master
   become: true
   ansible.builtin.shell: |
     echo '{{ ipa_admin_password }}' | kinit admin && \
-    ipa dnszone-add {{ hostname.split('.')[1:] | join('.') }} --author-email=admin@{{ hostname.split('.')[1:] | join('.') }}
+    ipa dnszone-add {{ ipa_zone }} --author-email=admin@{{ ipa_zone }}
   delegate_to: "{{ ipa_master_ip }}"
   register: zone_add_out
   failed_when: 
