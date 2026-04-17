@@ -48,7 +48,7 @@
   become: true
   ansible.builtin.shell: |
     echo '{{ ipa_admin_password }}' | kinit admin && \
-    ipa dnszone-add {{ hostname.split('.')[1:] | join('.') }} --author-email=admin@{{ ipa_domain }}
+    ipa dnszone-add {{ hostname.split('.')[1:] | join('.') }} --author-email=admin@{{ hostname.split('.')[1:] | join('.') }}
   delegate_to: "{{ ipa_master_ip }}"
   register: zone_add_out
   failed_when: 
@@ -57,7 +57,9 @@
   when: 
     - ipa_type == 'replica'
     - ipa_stage == 'unconfigured'
+  changed_when: "'added zone' in zone_add.stdout"
   # no_log: true
+
 
 - name: "Ensure DNS Records exist for installation {{ inventory_hostname.split('.')[0] }}"
   become: true
