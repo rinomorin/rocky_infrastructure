@@ -80,7 +80,7 @@
             - "ipa_master_ip {{ipa_master_ip}}"
             - "controller_node {{controller_node}}"
 
-      # --- STAGE 3: verification ---
+      # --- STAGE 3: verification Master Settings ---
       - name: Verify connection 
         import_tasks: ipa_service_check.yml
         vars:
@@ -90,7 +90,7 @@
           ipa_master_fqdb: "{{ hostvars[groups['ipa'][0]]['hostname'] }}"
           next_host: "{{ hostvars[groups['ipa'][1]]['hostname'] }}"
         when: 
-          - ipa_stage == 'unconfigured'
+          - ipa_stage == 'running'
           - ipa_type in ('primary', 'master')
 
   #   # --- STAGE 3 & 4: Self-Healing & Maintenance ---
