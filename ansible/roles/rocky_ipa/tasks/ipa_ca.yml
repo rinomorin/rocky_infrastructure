@@ -142,6 +142,8 @@
     PKI_TIMEOUT: "600"
   ansible.builtin.shell: |
     update-ca-trust
+    echo "nameserver {{ ipa_master_ip }}" > /etc/resolv.conf
+
     umask 022 && ipa-replica-install \
       --unattended \
       --principal=admin \
