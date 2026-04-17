@@ -24,8 +24,8 @@
     - stage: "required"
       condition: "{{ rpm_check.rc != 0 }}"
     
-    - stage: "installed"
-      condition: "{{ rpm_check.rc == 0 and not ipa_conf_file.stat.exists }}"
+    # - stage: "installed"
+    #   condition: "{{ rpm_check.rc == 0 and not ipa_conf_file.stat.exists }}"
 
     - stage: "unconfigured"
       condition: "{{ 'IPA is not configured' in ipa_service_check.stdout }}"
@@ -34,4 +34,4 @@
       condition: "{{ ipa_conf_file.stat.exists and 'IPA is not configured' not in ipa_service_check.stdout }}"
     
     - stage: "running"
-      condition: "{{ ipa_conf_file.stat.exists and ipa_service_check.rc == 0 }}"
+      condition: "{{ ipa_conf_file.stat.exists and 'IPA is not configured' in ipa_service_check.stdout }}"
