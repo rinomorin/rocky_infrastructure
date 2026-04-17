@@ -136,7 +136,7 @@
       --unattended \
       --principal=admin \
       --admin-password='{{ ipa_admin_password }}' \
-      --server={{ ipa_primary_fqdn }} \
+      --server={{ groups('ca')[0].hostname }} \
       --domain={{ ipa_domain }} \
       --realm={{ ipa_realm }} \
       --hostname={{ ca_hostname }} \
@@ -152,13 +152,6 @@
   environment:
     PKI_TIMEOUT: "900"
   ansible.builtin.shell: |
-    # 1. Ensure we can resolve the master locally to avoid any DNS lag
-    echo "{{ ipa_master_ip }} {{ ipa_primary_fqdn }}" >> /etc/hosts
-    
-    # 2. Update trust
-    update-ca-trust
-    
-    # 3. Install with simplified flags
     umask 022 && ipa-replica-install \
       --unattended \
       --principal=admin \
