@@ -128,6 +128,21 @@
     - ipa_stage == 'unconfigured'
     - ipa_role | default('primary') == 'primary'
 
+- debug:
+    msg: <
+      umask 022 && ipa-replica-install \
+      --unattended \
+      --principal=admin \
+      --admin-password='{{ ipa_admin_password }}' \
+      --server={{ ipa_primary_fqdn }} \
+      --domain={{ ipa_domain | lower }} \
+      --realm={{ ipa_domain | upper}} \
+      --hostname={{ ca_hostname }} \
+      --setup-ca \
+      --setup-dns \
+      --no-forwarders \
+      --no-host-dns
+
 - name: Configure IPA Secondary Replica (with CA)
   become: yes
   environment:
@@ -138,8 +153,8 @@
       --principal=admin \
       --admin-password='{{ ipa_admin_password }}' \
       --server={{ ipa_primary_fqdn }} \
-      --domain={{ dom_zone | lower }} \
-      --realm={{ dom_zone | upper}} \
+      --domain={{ ipa_domain | lower }} \
+      --realm={{ ipa_domain | upper}} \
       --hostname={{ ca_hostname }} \
       --setup-ca \
       --setup-dns \
