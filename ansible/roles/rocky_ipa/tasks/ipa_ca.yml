@@ -57,7 +57,7 @@
   when: 
     - ipa_type == 'replica'
     - ipa_stage == 'unconfigured'
-  no_log: true
+  # no_log: true
 
 - name: "Ensure DNS Records exist for installation {{ inventory_hostname.split('.')[0] }}"
   become: true
@@ -95,6 +95,7 @@
     # Ensure haveged or rng-tools is running if available to prevent entropy hang
     systemctl start rngd || true 
   when: ipa_stage == 'unconfigured'
+
 
 - name: Configure IPA CA server (Initial Build)
   become: yes

@@ -35,7 +35,7 @@ cd "${DEST_DIR}/ansible" || { echo "Failed to enter ${DEST_DIR}/ansible."; exit 
 # 3: Source environment
 if [ -d "${HOME}/deploy/venv" ]; then
     echo "--- Step 3: Sourcing environment: ${HOME}/deploy/venv ---"
-    source "${HoME}/venv/bin/activate"
+    source "${HOME}/venv/bin/activate"
 else
     echo "--- Step 3: Sourcing environment: ${DEST_DIR}/env_build.sh"
 fi
