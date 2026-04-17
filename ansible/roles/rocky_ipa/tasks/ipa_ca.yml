@@ -151,12 +151,14 @@
   become: yes
   environment:
     PKI_TIMEOUT: "900"
-    # Tell LDAP client to be more patient during the initial sync
-    LDAP_TIMEOUT: "600" 
   ansible.builtin.shell: |
-    cat /etc/resolv.conf
-    # Force CA trust refresh one more time
+    # 1. Ensure we can resolve the master locally to avoid any DNS lag
+    echo "{{ ipa_master_ip }} {{ ipa_primary_fqdn }}" >> /etc/hosts
+    
+    # 2. Update trust
     update-ca-trust
+    
+    # 3. Install with simplified flags
     umask 022 && ipa-replica-install \
       --unattended \
       --principal=admin \
@@ -170,7 +172,7 @@
       --no-forwarders \
       --no-host-dns \
       --skip-conncheck \
-      --ignore-topology-errors
+      --skip-nm-check
   register: ipa_replica_out
   when: 
     - ipa_stage == 'unconfigured'
