@@ -29,21 +29,32 @@
       when: user_create.rc == 0 or 'already exists' in user_create.stderr
 
 # Step 2: Delegate verification to Remote Host
+# --- STEP 2: Pre-Setup Verification ---
+- name: Remote - Securely override DNS with backup
+  delegate_to: "{{ next_host }}"
+  become: yes
+  ansible.builtin.copy:
+    content: |
+      search {{ search_domain }}
+      nameserver {{ nameserver_ip }}
+    dest: /etc/resolv.conf
+    backup: yes # This creates the .bak file for us automatically
+  register: dns_backup_info
+
 - name: Remote - Verify DNS resolution
   command: "host remotecheck.{{ search_domain }}"
   delegate_to: "{{ next_host }}"
   register: dns_verify
 
-- name: Remote - Raw LDAP Check (Bypass SSSD)
+- name: Remote - Raw LDAP Check
   command: >
     ldapsearch -x -H ldap://{{ nameserver_ip }} 
-    -b "cn=users,cn=accounts,dc=home,dc=morinsoft,dc=ca" 
+    -b "cn=users,cn=accounts,{{ ipa_base_dn | default('dc=example,dc=com') }}" 
     "uid=remoteuser"
   delegate_to: "{{ next_host }}"
   register: ldap_raw_check
 
 - name: Remote - Raw Kerberos Check
-  # With the expiration attribute set to 2030, kinit will no longer prompt for a change
   shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
   environment:
     KRB5_CONFIG: "/dev/null" 
@@ -61,28 +72,18 @@
   register: web_check
   ignore_errors: yes
 
-# --- STEP 3: Formatted Results ---
-- name: "Verification Summary Results"
+# --- CLEANUP ---
+- name: Remote - Restore Original DNS
+  delegate_to: "{{ next_host }}"
+  become: yes
+  shell: "mv {{ dns_backup_info.backup_file }} /etc/resolv.conf"
+  when: dns_backup_info.backup_file is defined
+  ignore_errors: yes
+
+- name: Verification Summary Results
   debug:
     msg: 
       - "DNS  Reachability : {{ 'ok' if dns_verify.rc == 0 else 'FAILED' }}"
       - "LDAP Reachability : {{ 'ok' if ldap_raw_check.rc == 0 else 'FAILED' }}"
       - "KRBR Auth Check  : {{ 'ok' if krb_raw_check.rc == 0 else 'FAILED' }}"
       - "WEB  UI Check    : {{ 'ok' if (web_check.status | default(-1)) == 200 else 'FAILED' }}"
-- name: Remote - Clear Security Artifacts
-  delegate_to: "{{ next_host }}"
-  become: yes
-  block:
-    - name: Remote - Destroy Test Kerberos Tickets
-      ansible.builtin.command: "kdestroy -A"
-      changed_when: false
-
-    - name: Remote - Flush SSSD Cache
-      # This ensures the 'id remoteuser' check won't work after the user is deleted
-      ansible.builtin.command: "sss_cache -E"
-      changed_when: false
-      ignore_errors: yes
-
-    - name: Remote - Restore Original DNS
-      ansible.builtin.shell: "mv /etc/resolv.conf.bak /etc/resolv.conf"
-      ignore_errors: yes
