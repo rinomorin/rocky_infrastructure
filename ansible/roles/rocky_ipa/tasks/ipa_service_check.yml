@@ -6,7 +6,7 @@
     - name: Master - Authenticate admin
       shell: "echo '{{ ipa_admin_password }}' | kinit admin@{{ search_domain | upper }}"
       changed_when: false
-      # no_log: true # Masking the Master Admin Password
+      no_log: true # Masking the Master Admin Password
 
     - name: Master - Create test DNS record (Checks Port 53)
       command: "ipa dnsrecord-add {{ search_domain }} remotecheck --a-rec=1.2.3.4"
@@ -30,8 +30,8 @@
   delegate_to: "{{ next_host }}"
   become: yes
   shell: |
-    echo search {{ search_domain }} > /etc/resolv.conf
-    echo nameserver nameserver_ip >> /etc/resolv.conf
+    echo search "{{ search_domain }}" > /etc/resolv.conf
+    echo nameserver "{{nameserver_ip}}" >> /etc/resolv.conf
 
 - name: Remote - Verify DNS resolution (Checks Port 53)
   command: "host remotecheck.{{ search_domain }}"
