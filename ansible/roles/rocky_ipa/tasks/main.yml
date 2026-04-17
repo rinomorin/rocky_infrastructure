@@ -91,6 +91,7 @@
           next_host: "{{ hostvars[groups['ipa'][1]]['hostname'] }}"
         when: 
           - ipa_stage == 'unconfigured'
+          - ipa_type in ('primary', 'master')
 
   #   # --- STAGE 3 & 4: Self-Healing & Maintenance ---
   #   - name: Self-healing - Ensure Services are Running
