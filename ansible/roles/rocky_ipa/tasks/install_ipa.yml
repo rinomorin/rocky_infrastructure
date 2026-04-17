@@ -152,10 +152,6 @@
 #   # We use the variable name directly here without extra brackets
 #   when: inventory_hostname == controller_node
 
-- debug:
-    msg: "ipa_install_result: {{ ipa_install_result.changed }}"
-
-
 - name: Handle Reboot Logic
   become: yes
   block:

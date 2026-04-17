@@ -41,7 +41,7 @@
 
   - name: What is check_status
     debug:
-      msg: |
+      var: |
         - "host {{ inventory_hostname }}"
         - "stage {{ipa_stage}}"
         - "type {{ipa_type}}"
