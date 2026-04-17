@@ -28,8 +28,7 @@
     import_tasks: install_ipa.yml
     when: 
       - ipa_stage == 'required'
-      - not defined ipa_continue
-
+      - ipa_continue is not defined
 
   - name: Dynamic Re-check
     ansible.builtin.include_tasks: check_status.yml
