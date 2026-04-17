@@ -17,12 +17,12 @@
   failed_when: false
   changed_when: false
 
-- name: see results
-  debug:
-    msg:
-     - "ipa_service_check {{ ipa_service_check }}"
-     - "ipa_conf_file {{ ipa_conf_file.stat.exists }}"
-     - "rpm_check {{ rpm_check.rc }}"
+# - name: see results
+#   debug:
+#     msg:
+#      - "ipa_service_check {{ ipa_service_check }}"
+#      - "ipa_conf_file {{ ipa_conf_file.stat.exists }}"
+#      - "rpm_check {{ rpm_check.rc }}"
 
 
 - name: "Determine IPA Stage"
@@ -40,8 +40,8 @@
     - stage: "unconfigured"
       condition: "{{ 'IPA is not configured' in ipa_service_check.stderr }}"
     
-    - stage: "configured"
-      condition: "{{ ipa_conf_file.stat.exists and 'IPA is not configured' not in ipa_service_check.stderr }}"
+    # - stage: "configured"
+    #   condition: "{{ ipa_conf_file.stat.exists and 'IPA is not configured' not in ipa_service_check.stderr }}"
     
     - stage: "running"
       condition: "{{ ipa_conf_file.stat.exists and 'IPA is not configured' not in ipa_service_check.stderr }}"

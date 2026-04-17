@@ -1,0 +1,58 @@
+---
+# Step 1: Setup test values on the Master
+- name: Master - Authenticate admin
+  shell: "echo '{{ ipa_admin_password }}' | kinit admin"
+  delegate_to: ipa01.example.ca
+  changed_when: false
+  no_log: true # Masking the Master Admin Password
+
+- name: Master - Create test DNS record (Checks Port 53)
+  command: "ipa dnsrecord-add {{ ipa_domain }} remotecheck --a-rec=1.2.3.4"
+  delegate_to: ipa01.example.ca
+  register: dns_create
+  failed_when: dns_create.rc != 0 and 'already exists' not in dns_create.stderr
+
+- name: Master - Create test User (Checks Ports 389/636)
+  # We use a distinct test password here so we aren't reusing the Master pass
+  command: "ipa user-add remoteuser --first=Remote --last=Test --password"
+  args:
+    stdin: "{{ ipa_test_user_password }}\n{{ ipa_test_user_password }}\n"
+  delegate_to: ipa01.example.ca
+  register: user_create
+  failed_when: user_create.rc != 0 and 'already exists' not in user_create.stderr
+  # This password can be shown in debugs if needed, unlike the admin pass
+
+# Step 2: Delegate verification to the Remote Host
+- name: Remote - Verify DNS resolution (Checks Port 53)
+  command: "host remotecheck.{{ ipa_domain }}"
+  delegate_to: "{{ next_host }}"
+  register: dns_verify
+  failed_when: "'1.2.3.4' not in dns_verify.stdout"
+
+- name: Remote - Verify Identity visibility (Checks Ports 389/636)
+  command: "id remoteuser"
+  delegate_to: "{{ next_host }}"
+  register: id_verify
+
+- name: Remote - Test Kerberos Auth (Checks Port 88)
+  # Proves the remote host can get a TGT from the Master
+  shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser"
+  delegate_to: "{{ next_host }}"
+  changed_when: false
+
+- name: Remote - Test Web/OCSP Reachability (Checks Ports 80/443)
+  uri:
+    url: "https://ipa01.example.ca/ipa/ui/"
+    validate_certs: no
+    status_code: 200
+  delegate_to: "{{ next_host }}"
+
+# Step 3: Cleanup
+- name: Master - Remove test entries
+  block:
+    - name: Remove test DNS
+      command: "ipa dnsrecord-del {{ ipa_domain }} remotecheck --a-rec=1.2.3.4"
+    - name: Remove test User
+      command: "ipa user-del remoteuser"
+  delegate_to: ipa01.example.ca
+  failed_when: false
