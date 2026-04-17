@@ -6,7 +6,6 @@ VENV_PATH="{$HOME}/deploy/venv"
 
 # Parse options
 while getopts "d:i:U:C:v:e:" opt; do
-  echo "opt: $opt = $OPTARG"
   case $opt in
     d) DEST_DIR="$OPTARG" ;;
     i) INVENTORY="$OPTARG" ;;
@@ -34,10 +33,10 @@ cd "${DEST_DIR}/ansible" || { echo "Failed to enter ${DEST_DIR}/ansible."; exit 
 
 # 3: Source environment
 if [ -d "${HOME}/deploy/venv" ]; then
-    echo "--- Step 3: Sourcing environment: ${HOME}/deploy/venv ---"
     source "${HOME}/deploy/venv/bin/activate"
 else
     echo "--- Step 3: Sourcing environment: ${DEST_DIR}/env_build.sh"
+    exit 1
 fi
 source "${DEST_DIR}/env_build.sh"
 
@@ -45,5 +44,4 @@ source "${DEST_DIR}/env_build.sh"
 export ANSIBLE_CONFIG="${DEST_DIR}/ansible/ansible.cfg"
 # pwd  && echo ${PLAYBOOK}
 # 4: Run the actual playbook
-echo "--- Step 4: Executing ansible-playbook ---"
 ansible-playbook -i "${INVENTORY}" "${PLAYBOOK}" ${EXTRA_VARS}
