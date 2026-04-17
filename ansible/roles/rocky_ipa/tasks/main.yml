@@ -90,8 +90,6 @@
           nameserver_ip: "{{ ipa_master_ip }} "
           ipa_master_fqdb: "{{ hostvars[groups['ipa'][0]]['hostname'] }}"
           next_host: "{{ hostvars[groups['ipa'][1]]['ansible_host'] }}"
-          ipa_test_user_password: "JSmoe"
-          ipa_test_user_password: "Testing4UsToo~"
         when: 
           - ipa_stage == 'running'
           - ipa_type in ('primary', 'master')

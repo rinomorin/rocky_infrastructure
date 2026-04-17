@@ -18,3 +18,7 @@ ipa_ca_intermediate: "{{ groups['ca_intermediate'][0] }}"
 ipa_ca_intermediate_ip: "{{ hostvars[groups['ca_intermediate'][0]].ansible_host }}"
 ipa_helper: "{{ groups['helpers'][0] }}"
 ipa_helper_ip: "{{ hostvars[groups['helpers'][0]].ansible_host }}"
+
+# Test purpose only
+ipa_test_user_password: "JSmoe"
+ipa_test_user_password: "Testing4UsToo~"
