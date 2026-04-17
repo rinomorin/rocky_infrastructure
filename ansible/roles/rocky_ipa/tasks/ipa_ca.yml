@@ -149,7 +149,11 @@
   become: yes
   environment:
     PKI_TIMEOUT: "900"
+    # Tell LDAP client to be more patient during the initial sync
+    LDAP_TIMEOUT: "600" 
   ansible.builtin.shell: |
+    # Force CA trust refresh one more time
+    update-ca-trust
     umask 022 && ipa-replica-install \
       --unattended \
       --principal=admin \
@@ -162,11 +166,13 @@
       --setup-dns \
       --no-forwarders \
       --no-host-dns \
-      --skip-conncheck
+      --skip-conncheck \
+      --ignore-topology-errors
   register: ipa_replica_out
   when: 
     - ipa_stage == 'unconfigured'
     - ipa_type == 'replica'
+
 # --- STAGE 4: RECOVERY & HEALTH VERIFICATION ---
 - name: Post-Config / Weekly Health Verification
   block:
