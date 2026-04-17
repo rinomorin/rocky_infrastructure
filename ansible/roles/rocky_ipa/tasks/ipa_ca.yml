@@ -105,6 +105,14 @@
     systemctl start rngd || true 
   when: ipa_stage == 'unconfigured'
 
+- name: Acquire Kerberos ticket for admin
+  expect:
+    command: kinit admin@{{ ipa_domain | upper }}
+    responses:
+      '(?i)Password for admin.*': "{{ ipa_admin_password }}"
+  register: kinit_admin
+  changed_when: false
+  no_log: true
 
 - name: Configure IPA CA server (Initial Build)
   become: yes
@@ -128,25 +136,6 @@
     - ipa_stage == 'unconfigured'
     - ipa_role | default('primary') == 'primary'
 
-- debug:
-    msg: <
-      ipa_stafe {{ ipa_stage }}
-      ipa_type {{ ipa_type }}
-      umask 022 && ipa-replica-install \
-      --unattended \
-      --principal=admin \
-      --admin-password='{{ ipa_admin_password }}' \
-      --server={{ hostvars[groups['ipa'][0]].inventory_hostname }} \
-      --domain={{ ipa_domain }} \
-      --realm={{ ipa_realm }} \
-      --hostname={{ ca_hostname }} \
-      --setup-ca \
-      --setup-dns \
-      --no-forwarders \
-      --no-host-dns \
-      --skip-conncheck \
-      --ignore-topology-errors
-
 - name: Configure IPA Secondary Replica (with CA)
   become: yes
   environment:
@@ -154,16 +143,17 @@
   ansible.builtin.shell: |
     umask 022 && ipa-replica-install \
       --unattended \
-      --principal=admin \
-      --admin-password='{{ ipa_admin_password }}' \
       --server={{ hostvars[groups['ipa'][0]].inventory_hostname }} \
       --domain={{ ipa_domain | lower }} \
       --realm={{ ipa_domain | upper}} \
       --hostname={{ ca_hostname }} \
       --setup-ca \
+      --setup-kra \
+      --auto-reverse \
+      --auto-forwarders \
       --setup-dns \
-      --no-forwarders \
-      --no-host-dns
+      # --no-forwarders \
+      # --no-host-dns
   register: ipa_replica_out
   when: 
     - ipa_stage == 'unconfigured'
