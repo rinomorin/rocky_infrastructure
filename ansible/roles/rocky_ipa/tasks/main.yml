@@ -22,7 +22,7 @@
       - "ipa_master_fqdn {{ipa_master_fqdn}}"
       - "ipa_master_ip {{ipa_master_ip}}"
       - "controller_node {{controller_node}}"
-      - "ipa_continue {{ipa_continue}}"
+      - "ipa_continue {{ipa_continue | default( "not defined ")}}"
   
 - name: Initial, Health & Recovery Self-healing
   block:
