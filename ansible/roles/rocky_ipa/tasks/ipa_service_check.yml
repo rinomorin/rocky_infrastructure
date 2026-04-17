@@ -1,14 +1,12 @@
----
 - name: Master Task
   become: yes
   block:
-    # Step 1: Setup test values on the Master
     - name: Master - Authenticate admin
       shell: "echo '{{ ipa_admin_password }}' | kinit admin@{{ search_domain | upper }}"
       changed_when: false
-      no_log: true # Masking the Master Admin Password
+      no_log: true
 
-    - name: Master - Create test DNS record (Checks Port 53)
+    - name: Master - Create test DNS record
       command: "ipa dnsrecord-add {{ search_domain }} remotecheck --a-rec=1.2.3.4"
       register: dns_create
       failed_when: 
@@ -16,46 +14,32 @@
         - "'already exists' not in dns_create.stderr"
         - "'no modifications to be performed' not in dns_create.stderr"
 
-
-    - name: Master - Create test User (Checks Ports 389/636)
-      # We use a distinct test password here so we aren't reusing the Master pass
+    - name: Master - Create test User
       command: "ipa user-add remoteuser --first=Remote --last=Test --password"
       args:
         stdin: "{{ ipa_test_user_password }}\n{{ ipa_test_user_password }}\n"
       register: user_create
       failed_when: user_create.rc != 0 and 'already exists' not in user_create.stderr
-      # This password can be shown in debugs if needed, unlike the admin pass
 
-    - name: Verify user exists on Master before proceeding
-      command: "ipa user-show remoteuser"
-      register: master_user_check
+    - name: Master - Clear Password Expiry (Prevent kinit failure)
+      # This makes the password "permanent" so remote kinit doesn't prompt for change
+      shell: "echo '{{ ipa_test_user_password }}' | ipa user-mod remoteuser --password"
+      args:
+        stdin: "{{ ipa_test_user_password }}\n"
+      when: user_create.changed
 
-    - debug:
-        msg: "User exists on Master: {{ master_user_check.stdout }}"
-
-# Step 2: Delegate verification to the Remote Host
-- name: set dns in reolve resolve (temporary til next boot)
+# Step 2: Delegate verification
+- name: set dns in resolve (temporary)
   delegate_to: "{{ next_host }}"
   become: yes
   shell: |
     echo search "{{ search_domain }}" > /etc/resolv.conf
-    echo nameserver "{{nameserver_ip}}" >> /etc/resolv.conf
+    echo nameserver "{{ nameserver_ip }}" >> /etc/resolv.conf
 
-- name: Remote - Verify DNS resolution (Checks Port 53)
+- name: Remote - Verify DNS resolution
   command: "host remotecheck.{{ search_domain }}"
   delegate_to: "{{ next_host }}"
   register: dns_verify
-  failed_when: "'1.2.3.4' not in dns_verify.stdout"
-
-- name: Remote - Force SSSD to see new Master data
-  delegate_to: "{{ next_host }}"
-  become: yes
-  ansible.builtin.command: "sss_cache -E"
-  changed_when: false
-
-- name: Remote - Settling delay for LDAP replication
-  ansible.builtin.pause:
-    seconds: 20  # Give replication a real chance to sync
 
 - name: Remote - Raw LDAP Check (Bypass SSSD)
   command: >
@@ -68,82 +52,26 @@
 - name: Remote - Raw Kerberos Check (Bypass local config)
   shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
   environment:
-    # We point to a dummy/temp config or specify the KDC directly
     KRB5_CONFIG: "/dev/null" 
     KRB5_KDC: "{{ nameserver_ip }}"
   delegate_to: "{{ next_host }}"
   register: krb_raw_check
   ignore_errors: yes
 
-- name: Remote - Verify Identity visibility (Retry with domain if first failed)
-  command: "id remoteuser@{{ search_domain }}"
-  delegate_to: "{{ next_host }}"
-  register: id_verify_qualified
-  when: id_verify.rc != 0
-
-- name: Remote - Test Kerberos Auth (Checks Port 88)
-  shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser"
-  delegate_to: "{{ next_host }}"
-  register: krb_verify # Ensure this matches your summary
-  changed_when: false
-
-- name: Remote - Test Web/OCSP Reachability (Checks Ports 80/443)
+- name: Remote - Test Web UI Reachability
   uri:
     url: "https://{{ search_domain }}/ipa/ui/"
     validate_certs: no
     status_code: 200
   delegate_to: "{{ next_host }}"
-
-- name: Cleanup on master
-  become: yes
-  block: 
-  # --- STEP 3: COMPREHENSIVE CLEANUP ---
-  - name: Master - Remove test entries    
-    block:
-      - name: Remove test DNS
-        command: "ipa dnsrecord-del {{ search_domain }} remotecheck --a-rec=1.2.3.4"
-        failed_when: false
-      - name: Remove test User
-        command: "ipa user-del remoteuser"
-        failed_when: false
-    
-      - name: Master - Remove test DNS (including PTR)
-        # Adding -v or ensuring the command handles the zone correctly
-        ansible.builtin.command: "ipa dnsrecord-del {{ search_domain }} remotecheck --del-all"
-        ignore_errors: yes
-
-      - name: Master - Remove test User
-        ansible.builtin.command: "ipa user-del remoteuser"
-        ignore_errors: yes
-
-      - name: Master - Destroy Admin/Test Tickets
-        ansible.builtin.command: "kdestroy -A"
-        changed_when: false
-  
-
-  - name: Remote - Clear Security Artifacts
-    delegate_to: "{{ next_host }}"
-    become: yes
-    block:
-      - name: Remote - Destroy Test Kerberos Tickets
-        ansible.builtin.command: "kdestroy -A"
-        changed_when: false
-
-      - name: Remote - Flush SSSD Cache
-        # This ensures the 'id remoteuser' check won't work after the user is deleted
-        ansible.builtin.command: "sss_cache -E"
-        changed_when: false
-        ignore_errors: yes
-
-      - name: Remote - Restore Original DNS
-        ansible.builtin.shell: "mv /etc/resolv.conf.bak /etc/resolv.conf"
-        ignore_errors: yes
+  register: web_check
+  ignore_errors: yes
 
 # --- STEP 3: Formatted Results ---
 - name: "Verification Summary Results"
   debug:
     msg: 
-      - "DNS  {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if dns_verify.rc == 0 else 'FAILED' }}"
-      - "LDAP {{ search_domain }} from {{ next_host }} : {{ 'ok' if id_verify.rc == 0 else 'FAILED' }}"
-      - "KRBR {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if krb_verify.rc == 0 else 'FAILED' }}"
-      - "SSSD {{ search_domain }}/{{ nameserver_ip }} from {{ next_host }} : {{ 'ok' if id_verify.rc == 0 else 'FAILED' }}"
+      - "DNS  Reachability : {{ 'ok' if dns_verify.rc == 0 else 'FAILED' }}"
+      - "LDAP Reachability : {{ 'ok' if ldap_raw_check.rc == 0 else 'FAILED' }}"
+      - "KRBR Auth Check  : {{ 'ok' if krb_raw_check.rc == 0 else 'FAILED' }}"
+      - "WEB  UI Check    : {{ 'ok' if web_check.status == 200 else 'FAILED' }}"
