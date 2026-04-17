@@ -12,7 +12,7 @@
 
 - name: Check IPA service status
   become: yes
-  ansible.builtin.command: "ipactl status"
+  shell: "ipactl status"
   register: ipa_service_check
   failed_when: false
   changed_when: false
