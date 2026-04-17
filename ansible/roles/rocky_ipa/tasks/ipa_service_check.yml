@@ -11,7 +11,10 @@
     - name: Master - Create test DNS record (Checks Port 53)
       command: "ipa dnsrecord-add {{ search_domain }} remotecheck --a-rec=1.2.3.4"
       register: dns_create
-      failed_when: dns_create.rc != 0 and 'already exists' not in dns_create.stderr
+      failed_when: 
+        - dns_create.rc != 0 
+        - "'already exists' not in dns_create.stderr"
+        - "'no modifications to be performed' not in dns_create.stderr"
 
     - name: Master - Create test User (Checks Ports 389/636)
       # We use a distinct test password here so we aren't reusing the Master pass
