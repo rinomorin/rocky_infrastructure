@@ -106,13 +106,10 @@
   when: ipa_stage == 'unconfigured'
 
 - name: Acquire Kerberos ticket for admin
-  expect:
-    command: kinit admin@{{ ipa_domain | upper }}
-    responses:
-      '(?i)Password for admin.*': "{{ ipa_admin_password }}"
+  command: echo '{{ ipa_admin_password }}' | kinit admin 
   register: kinit_admin
   changed_when: false
-  no_log: true
+  # no_log: true
   when: 
     - ipa_stage == 'unconfigured'
     - ipa_type == 'replica'
