@@ -12,23 +12,23 @@
       failed_when: 
         - dns_create.rc != 0 
         - "'already exists' not in dns_create.stderr"
+        - "'no modifications' not in dns_create.stderr"
 
     - name: Master - Create test User
       command: "ipa user-add remoteuser --first=Remote --last=Test --password"
       args:
         stdin: "{{ ipa_test_user_password }}\n{{ ipa_test_user_password }}\n"
       register: user_create
-      failed_when: user_create.rc != 0 and 'already exists' not in user_create.stderr
+      failed_when: 
+        - user_create.rc != 0 
+        - "'already exists' not in user_create.stderr"
 
-    - name: Master - Force Password Permanent
-      # Running this twice or using user-mod to set the password again 
-      # usually bypasses the "Expired" flag in FreeIPA
-      shell: "echo '{{ ipa_test_user_password }}' | ipa user-mod remoteuser --password"
-      args:
-        stdin: "{{ ipa_test_user_password }}\n"
-      when: user_create.changed or "'Password expired' in krb_raw_check.stderr | default('')"
+    - name: Master - Administrative Password Bypass
+      # This clears the "must change password" flag so remote kinit works immediately
+      command: "ipa principal-mod remoteuser --setattr krbPasswordExpiration=20300101000000Z"
+      when: user_create.changed or user_create.rc == 0
 
-# Step 2: Delegate verification
+# Step 2: Delegate verification to Remote Host (.11)
 - name: Remote - Verify DNS resolution
   command: "host remotecheck.{{ search_domain }}"
   delegate_to: "{{ next_host }}"
@@ -43,7 +43,7 @@
   register: ldap_raw_check
 
 - name: Remote - Raw Kerberos Check
-  # We use the -pw argument or STDIN, but let's try setting the env properly
+  # Now that the flag is cleared on the Master, this should pass
   shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
   environment:
     KRB5_CONFIG: "/dev/null" 
@@ -53,7 +53,7 @@
   ignore_errors: yes
 
 - name: Remote - Test Web UI Reachability
-  # We use the master's IP or specific FQDN to avoid root domain resolution issues
+  # Using the Master's FQDN to ensure DNS finds the web server
   uri:
     url: "https://{{ ipa_master_fqdn }}/ipa/ui/"
     validate_certs: no
@@ -69,4 +69,23 @@
       - "DNS  Reachability : {{ 'ok' if dns_verify.rc == 0 else 'FAILED' }}"
       - "LDAP Reachability : {{ 'ok' if ldap_raw_check.rc == 0 else 'FAILED' }}"
       - "KRBR Auth Check  : {{ 'ok' if krb_raw_check.rc == 0 else 'FAILED' }}"
-      - "WEB  UI Check    : {{ 'ok' if web_check.status == 200 else 'FAILED' }}"
+      - "WEB  UI Check    : {{ 'ok' if (web_check.status | default(-1)) == 200 else 'FAILED' }}"
+
+
+- name: Remote - Clear Security Artifacts
+  delegate_to: "{{ next_host }}"
+  become: yes
+  block:
+    - name: Remote - Destroy Test Kerberos Tickets
+      ansible.builtin.command: "kdestroy -A"
+      changed_when: false
+
+    - name: Remote - Flush SSSD Cache
+      # This ensures the 'id remoteuser' check won't work after the user is deleted
+      ansible.builtin.command: "sss_cache -E"
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Remote - Restore Original DNS
+      ansible.builtin.shell: "mv /etc/resolv.conf.bak /etc/resolv.conf"
+      ignore_errors: yes
