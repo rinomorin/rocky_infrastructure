@@ -57,35 +57,22 @@
   ansible.builtin.pause:
     seconds: 20  # Give replication a real chance to sync
 
-- name: Diagnostic - Check SSSD Online Status
-  command: "sssctl domain-status {{ search_domain }}"
+- name: Remote - Raw LDAP Check (Bypass SSSD)
+  command: >
+    ldapsearch -x -H ldap://{{ nameserver_ip }} 
+    -b "cn=users,cn=accounts,dc=home,dc=morinsoft,dc=ca" 
+    "uid=remoteuser"
   delegate_to: "{{ next_host }}"
-  register: sss_status
-  ignore_errors: yes
+  register: ldap_raw_check
 
-- name: Diagnostic - Check IPA Replication Topology
-  command: "ipa topologysegment-find domain"
-  register: replication_status
-  # Run this on Master to see if it sees the replica as a partner
-  delegate_to: "{{ ipa_master_ip }}"
-
-- name: Diagnostic - Check if Replica can see LDAP locally
-  # This bypasses SSSD and checks the Directory Server directly on the replica
-  command: "ldapsearch -x -H ldap://localhost -b 'cn=users,cn=accounts,{{ ipa_base_dn }}' 'uid=remoteuser'"
+- name: Remote - Raw Kerberos Check (Bypass local config)
+  shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
+  environment:
+    # We point to a dummy/temp config or specify the KDC directly
+    KRB5_CONFIG: "/dev/null" 
+    KRB5_KDC: "{{ nameserver_ip }}"
   delegate_to: "{{ next_host }}"
-  register: ldap_direct_check
-  ignore_errors: yes
-
-- debug:
-    msg: 
-      - "SSSD Status: {{ sss_status.stdout }}"
-      - "LDAP Direct on Replica: {{ 'Found' if ldap_direct_check.rc == 0 else 'Not Found' }}"
-
-- name: Remote - Verify Identity visibility
-  # Try without the @domain first, as SSSD on IPA usually defaults to its own domain
-  command: "id remoteuser"
-  delegate_to: "{{ next_host }}"
-  register: id_verify
+  register: krb_raw_check
   ignore_errors: yes
 
 - name: Remote - Verify Identity visibility (Retry with domain if first failed)
