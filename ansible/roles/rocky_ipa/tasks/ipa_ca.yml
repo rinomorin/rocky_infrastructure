@@ -150,25 +150,20 @@
 - name: Configure IPA Secondary Replica (with CA)
   become: yes
   environment:
-    PKI_TIMEOUT: "900"
+    PKI_TIMEOUT: "600"
   ansible.builtin.shell: |
-    # Ensure CA trust is fresh
-    update-ca-trust
-    
-    # Run installation with only the core required flags
     umask 022 && ipa-replica-install \
       --unattended \
       --principal=admin \
       --admin-password='{{ ipa_admin_password }}' \
-      --server=ipa01.home.acme.ca \
-      --domain={{ ipa_domain }} \
-      --realm={{ ipa_realm }} \
+      --server={{ hostvars[groups['ipa'][0]].inventory_hostname }} \
+      --domain={{ ipa_domain | lower }} \
+      --realm={{ ipa_domain | upper}} \
       --hostname={{ ca_hostname }} \
       --setup-ca \
       --setup-dns \
       --no-forwarders \
-      --no-host-dns \
-      --skip-conncheck
+      --no-host-dns
   register: ipa_replica_out
   when: 
     - ipa_stage == 'unconfigured'
