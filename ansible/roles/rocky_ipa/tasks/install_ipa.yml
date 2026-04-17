@@ -39,6 +39,7 @@
       - ipa-server
       - ipa-server-dns
       - python3-pexpect
+      - crypto-policies-scripts
     state: present
   register: ipa_install_result  
   when: 
@@ -46,15 +47,14 @@
     - ipa_type in ('primary', 'master', 'member', 'replica', 'client')
 
 - name: Enable FIPS on k8s server
-  become: true
   block:
     - name: Check if FIPS is enabled
-      ansible.builtin.command: /usr/bin/fips-mode-setup --check
+      shell: sudo /usr/bin/fips-mode-setup --check
       register: fips_check
       changed_when: false
 
     - name: Enable FIPS mode
-      ansible.builtin.command: /usr/bin/fips-mode-setup --enable
+      shell: sudo /usr/bin/fips-mode-setup --enable
       when: "'is enabled' not in fips_check.stdout"
       register: fips_enable
   when: 
