@@ -30,11 +30,13 @@
 - name: create certs from cacert.p12
   become: yes
   shell: |
-    # Extract only the private key
-    openssl pkcs12 -in /root/cacert.p12 -nocerts -nodes -out /root/serverkey.pem -clcerts -passin pass:{{ ipa_dm_password }}
-    # Extract only the certificate
-    openssl pkcs12 -in /root/cacert.p12 -clcerts -nokeys -out /root/servercert.pem -passin pass:{{ ipa_dm_password }}
-  # no_log: true
+    # Extract only the private key using legacy and skipping MAC verification
+    openssl pkcs12 -in /root/cacert.p12 -nocerts -nodes -out /root/serverkey.pem -clcerts -passin pass:{{ ipa_dm_password }} -legacy -nomacver
+    
+    # Extract only the certificate using legacy and skipping MAC verification
+    openssl pkcs12 -in /root/cacert.p12 -clcerts -nokeys -out /root/servercert.pem -passin pass:{{ ipa_dm_password }} -legacy -nomacver
+  no_log: true
+
 
 - name: copy ca.crt to trusted
   become: yes
