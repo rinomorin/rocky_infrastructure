@@ -131,7 +131,7 @@
 - debug:
     msg: <
       ipa_stafe {{ ipa_stage }}
-      ipa_type {{ ipa_type
+      ipa_type {{ ipa_type }}
       umask 022 && ipa-replica-install \
       --unattended \
       --principal=admin \
