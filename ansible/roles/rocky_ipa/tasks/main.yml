@@ -63,7 +63,7 @@
       ipa_role: "{{ ipa_type }}"
     when: 
       - ipa_stage == 'unconfigured'
-      - ipa_type in ('primary', 'master','replica')
+      - ipa_type in ('primary', 'master')
 
 
   #   # --- STAGE 3 & 4: Self-Healing & Maintenance ---
