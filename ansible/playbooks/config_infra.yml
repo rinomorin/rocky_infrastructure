@@ -14,6 +14,10 @@
       failed_when: 
         - "{{ 'Timeout when waiting' not in internal_dns_check.msg }}"
 
+    - name: see Results
+      debug:
+        msg: "{{ internal_dns_check}}"
+
     - name: Ensure latest stable collections are installed on controller
       community.general.ansible_galaxy_install:
         type: collection
