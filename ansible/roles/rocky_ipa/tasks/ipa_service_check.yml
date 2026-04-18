@@ -5,13 +5,48 @@
     ipa_test_user: "{{ lookup('env', 'ipa_test_user_password') }}"
     ipa_test_user_password: "{{ lookup('env', 'ipa_test_user_password') }}"
 
-- name: Network Prep - Force Temporary DNS
+- name: Network Prep - Conditional Temporary DNS
   become: yes
-  run_once: true
   ansible.builtin.shell: |
+    # 1. Check for localhost DNS
+    if grep -q "127.0.0.1" /etc/resolv.conf; then
+        if command -v ipactl >/dev/null 2>&1 && ipactl status >/dev/null 2>&1; then
+            echo "Local IPA is alive. No change needed."
+            exit 0
+        fi
+    fi
+
+    # 2. Check for Master IP DNS
+    MASTER_IP="{{ hostvars[item]['ansible_host'] | default(ipa_master_ip) }}"
+    if grep -q "$MASTER_IP" /etc/resolv.conf; then
+        # Check if we have 'host' or 'nc' to verify the Master
+        if command -v host >/dev/null 2>&1; then
+            if host -W 1 "$MASTER_IP" "$MASTER_IP" >/dev/null 2>&1; then
+                echo "Master DNS is resolving. No change needed."
+                exit 03_verify_orchestrator 
+            fi
+        elif command -v nc >/dev/null 2>&1; then
+            if nc -z -w 2 "$MASTER_IP" 53 >/dev/null 2>&1; then
+                echo "Master port 53 is reachable via nc. No change needed."
+                exit 0
+            fi
+        fi
+    fi
+
+    # 3. Fallback Check: Is Google already there?
+    if grep -q "8.8.8.8" /etc/resolv.conf; then
+        echo "8.8.8.8 already present. No change needed."
+        exit 0
+    fi
+
+    # 4. If we reached here, tools are missing or Master is unreachable
     echo "nameserver 8.8.8.8" > /etc/resolv.conf
     echo "nameserver 1.1.1.1" >> /etc/resolv.conf
-  changed_when: false
+    echo "Updated resolv.conf with temporary DNS to allow tool installation"
+  register: dns_update_result
+  changed_when: "'Updated' in dns_update_result.stdout"
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['ipa'] }}"
 
 
 # SECTION 1: Setup on the Source (Primary)
@@ -64,7 +99,7 @@
       register: dns_backup_info
 
     - name: Remote - Verify DNS resolution
-      command: "host remotecheck.{{ search_domain }}"
+      command: "host remotecheck.{{ search_domain }}  {{ nameserver_ip }}"
       register: dns_verify
 
     - name: Remote - Raw LDAP Check
