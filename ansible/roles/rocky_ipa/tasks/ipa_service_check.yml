@@ -1,4 +1,10 @@
 ---
+# Test purpose only
+- name: set test id
+  set_fact:
+    ipa_test_user: "{{ lookup('env', 'ipa_test_user_password') }}"
+    ipa_test_user_password: "{{ lookup('env', 'ipa_test_user_password') }}"
+
 # SECTION 1: Setup on the Source (Primary)
 - name: "Verification - Setup Test Data on Master"
   delegate_to: "{{ groups['ipa'][0] }}"

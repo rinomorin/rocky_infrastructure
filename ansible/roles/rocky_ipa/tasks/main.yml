@@ -62,9 +62,6 @@
           ipa_master_ip: "{{ hostvars[inventory_hostname].ansible_host | default( lookup('env', 'ipa_master_ip'))}}"
           ca_hostname: "{{ hostvars[inventory_hostname].hostname | default( lookup('env', 'ipa_master'))}}"
           ipa_role: "{{ ipa_type }}"
-          # Test purpose only
-          ipa_test_user: "{{ lookup('env', 'ipa_test_user_password') }}"
-          ipa_test_user_password: "{{ lookup('env', 'ipa_test_user_password') }}"
         when: 
           - ipa_stage == 'unconfigured'
           - ipa_type in ('primary', 'master')
@@ -89,8 +86,6 @@
         import_tasks: ipa_service_check.yml
         no_log: true
         vars:
-          # Test purpose only
-          ipa_test_user: "{{ lookup('env', 'ipa_test_user_password') }}"
           ipa_test_user_password: "{{ lookup('env', 'ipa_test_user_password') }}"
           ipa_admin_password: "{{ lookup('env', 'ipa_admin_password')}}"
           search_domain: "{{ lookup('env', 'ipa_domain') |lower}}"
@@ -121,9 +116,6 @@
       - name: Final Service Validation
         import_tasks: ipa_service_check.yml
         vars:
-          # Test purpose only
-          ipa_test_user: "{{ lookup('env', 'ipa_test_user_password') }}"
-          ipa_test_user_password: "{{ lookup('env', 'ipa_test_user_password') }}"
           ipa_admin_password: "{{ lookup('env', 'ipa_admin_password') }}"
           search_domain: "{{ lookup('env', 'ipa_domain') | lower }}"
           # We want to test the Secondary's IP
@@ -138,9 +130,6 @@
       - name:  Process Stage 4 - replica host Configuration (helper)
         import_tasks: ipa_replica.yml
         vars:
-          # Test purpose only
-          ipa_test_user: "{{ lookup('env', 'ipa_test_user_password') }}"
-          ipa_test_user_password: "{{ lookup('env', 'ipa_test_user_password') }}"
           ipa_master: "{{ hostvars[ipa_master_host]['inventory_hostname'] }}"
           ipa_master_ip: "{{ hostvars[ipa_master_host]['ansible_host'] }}"
           ipa_primary_fqdn: "{{ hostvars[ipa_master_host]['hostname'] }}"
@@ -158,9 +147,6 @@
       - name: Final Service Validation
         import_tasks: ipa_service_check.yml
         vars:
-          # Test purpose only
-          ipa_test_user: "{{ lookup('env', 'ipa_test_user_password') }}"
-          ipa_test_user_password: "{{ lookup('env', 'ipa_test_user_password') }}"
           ipa_admin_password: "{{ lookup('env', 'ipa_admin_password') }}"
           search_domain: "{{ lookup('env', 'ipa_domain') | lower }}"
           # We want to test the Secondary's IP
