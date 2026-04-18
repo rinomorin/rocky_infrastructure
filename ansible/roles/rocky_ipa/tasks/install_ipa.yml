@@ -95,38 +95,6 @@
       --add-port=3269/tcp && \
     firewall-cmd --reload
 
-- name: Configure firewall for IPA
-  become: true
-  ansible.builtin.shell: |
-    firewall-cmd --set-default-zone=drop && \
-    firewall-cmd --permanent --zone=drop \
-      --add-service=http \
-      --add-service=https \
-      --add-service=dns \
-      --add-service=dns-over-tls \
-      --add-service=ldap \
-      --add-service=ldaps \
-      --add-service=kerberos \
-      --add-service=ssh \
-      --add-service=ntp && \
-    firewall-cmd --permanent --zone=drop \
-      --add-port=80/tcp \
-      --add-port=443/tcp \
-      --add-port=53/tcp \
-      --add-port=53/udp \
-      --add-port=88/tcp \
-      --add-port=88/udp \
-      --add-port=123/udp \
-      --add-port=389/tcp \
-      --add-port=636/tcp \
-      --add-port=464/tcp \
-      --add-port=464/udp \
-      --add-port=8443/tcp \
-      --add-port=8080/tcp \
-      --add-port=3268/tcp \
-      --add-port=3269/tcp && \
-    firewall-cmd --reload
-
 - name: Determine Git Remote URL
   set_fact:
     # We use 'this_url' to grab the remote from the local git config

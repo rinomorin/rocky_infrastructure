@@ -5,6 +5,90 @@
   register: set_hostname
   changed_when: false
 
+- name: Allow IPA services in the drop zone
+  ansible.posix.firewalld:
+    zone: drop
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  become: true
+  loop:
+    - http
+    - https
+    - dns
+    - dns-over-tls
+    - ldap
+    - ldaps
+    - kerberos
+    - ssh
+    - ntp
+
+- name: Allow specific IPA ports in the drop zone
+  ansible.posix.firewalld:
+    zone: drop
+    port: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  become: true
+  loop:
+    - 80/tcp
+    - 443/tcp
+    - 53/tcp
+    - 53/udp
+    - 88/tcp
+    - 88/udp
+    - 123/udp
+    - 389/tcp
+    - 636/tcp
+    - 464/tcp
+    - 464/udp
+    - 8443/tcp
+    - 8080/tcp
+    - 3268/tcp
+    - 3269/tcp
+
+- name: Set default firewall zone to drop
+  ansible.posix.firewalld:
+    default_zone: drop
+    state: enabled
+    permanent: true
+    immediate: true
+  become: true
+
+# - name: Configure firewall for IPA
+#   become: true
+#   ansible.builtin.shell: |
+#     firewall-cmd --set-default-zone=drop && \
+#     firewall-cmd --permanent --zone=drop \
+#       --add-service=http \
+#       --add-service=https \
+#       --add-service=dns \
+#       --add-service=dns-over-tls \
+#       --add-service=ldap \
+#       --add-service=ldaps \
+#       --add-service=kerberos \
+#       --add-service=ssh \
+#       --add-service=ntp && \
+#     firewall-cmd --permanent --zone=drop \
+#       --add-port=80/tcp \
+#       --add-port=443/tcp \
+#       --add-port=53/tcp \
+#       --add-port=53/udp \
+#       --add-port=88/tcp \
+#       --add-port=88/udp \
+#       --add-port=123/udp \
+#       --add-port=389/tcp \
+#       --add-port=636/tcp \
+#       --add-port=464/tcp \
+#       --add-port=464/udp \
+#       --add-port=8443/tcp \
+#       --add-port=8080/tcp \
+#       --add-port=3268/tcp \
+#       --add-port=3269/tcp && \
+#     firewall-cmd --reload
+
 - name: Test connectivity from local to Helper
   shell: >
     whoami && hostname
