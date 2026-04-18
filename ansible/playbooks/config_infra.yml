@@ -15,7 +15,7 @@
 
     - name: check ipa Results
       debug:
-        msg: "{{internal_dns_check}}"
+        msg: "{{internal_dns_check.failed}} and {{internal_dns_check.rc}}"
             
     - name: Ensure latest stable collections are installed on controller
       community.general.ansible_galaxy_install:
