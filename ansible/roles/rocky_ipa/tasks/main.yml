@@ -51,7 +51,7 @@
       
       # --- STAGE 2: configrue the primary ---      
       - name: Process Stage 2 - Primary host Configuration
-        no_log: true
+        # no_log: true
         import_tasks: ipa_master.yml
         vars:
           ipa_domain: "{{ lookup('env', 'ipa_domain') |lower}}"
@@ -84,7 +84,7 @@
       # --- Mid STAGE 2: verification Master Settings ---
       - name: Verify connection 
         import_tasks: ipa_service_check.yml
-        no_log: true
+        # no_log: true
         vars:
           ipa_admin_password: "{{ lookup('env', 'ipa_admin_password')}}"
           search_domain: "{{ lookup('env', 'ipa_domain') |lower}}"
