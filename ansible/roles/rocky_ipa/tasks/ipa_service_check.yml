@@ -1,5 +1,7 @@
-# tasks/ipa_service_check.yml
-- name: Master Task
+---
+# --- SECTION 1: Setup on the Source (Primary) ---
+- name: "Verification - Setup Test Data on Master"
+  delegate_to: "{{ groups['ipa'][0] }}"
   become: yes
   block:
     - name: Master - Authenticate admin
@@ -7,13 +9,12 @@
       changed_when: false
       no_log: true
 
-    - name: Master - Create test DNS record
+    - name: Master - Create test record
       command: "ipa dnsrecord-add {{ search_domain }} remotecheck --a-rec=1.2.3.4"
       register: dns_create
       failed_when: 
         - dns_create.rc != 0 
         - "'already exists' not in dns_create.stderr"
-        - "'no modifications' not in dns_create.stderr"
 
     - name: Master - Create test User
       command: "ipa user-add remoteuser --first=Remote --last=Test --password"
@@ -24,86 +25,9 @@
         - user_create.rc != 0 
         - "'already exists' not in user_create.stderr"
 
-    - name: Master - Administrative Password Bypass
-      command: "ipa user-mod remoteuser --setattr krbPasswordExpiration=20300101000000Z"
-      register: pass_bypass
-      # Ignore the error if the attribute is already set to this value
-      failed_when:
-        - pass_bypass.rc != 0
-        - "'no modifications' not in pass_bypass.stderr"
-      when: user_create.rc == 0 or 'already exists' in user_create.stderr
-
-# Step 2: Delegate verification to Remote Host
-- name: Remote - DNS Setup with Backup
-  delegate_to: "{{ next_host }}"
-  become: yes
-  ansible.builtin.copy:
-    content: |
-      search {{ search_domain }}
-      nameserver {{ nameserver_ip }}
-    dest: /etc/resolv.conf
-    backup: yes
-  register: dns_backup_info
-
-- name: Remote - Verify DNS resolution
-  command: "host remotecheck.{{ search_domain }}"
-  delegate_to: "{{ next_host }}"
-  register: dns_verify
-
-- name: Remote - Raw LDAP Check
-  command: >
-    ldapsearch -x -H ldap://{{ nameserver_ip }} 
-    -b "cn=users,cn=accounts,dc=home,dc=morinsoft,dc=ca" 
-    "uid=remoteuser"
-  delegate_to: "{{ next_host }}"
-  register: ldap_raw_check
-
-- name: Remote - Raw Kerberos Check
-  shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
-  environment:
-    KRB5_CONFIG: "/dev/null" 
-    KRB5_KDC: "{{ nameserver_ip }}"
-  delegate_to: "{{ next_host }}"
-  register: krb_raw_check
-  ignore_errors: yes
-
-- name: Remote - Test Web UI Reachability
-  uri:
-    url: "https://{{ ipa_master_fqdn }}/ipa/ui/"
-    validate_certs: no
-    status_code: 200
-  delegate_to: "{{ next_host }}"
-  register: web_check
-  ignore_errors: yes
-
-# --- STEP 3: Results & Cleanup ---
-- name: "Verification Summary Results"
-  debug:
-    msg: 
-      - "DNS  Reachability : {{ 'ok' if dns_verify.rc == 0 else 'FAILED' }}"
-      - "LDAP Reachability : {{ 'ok' if ldap_raw_check.rc == 0 else 'FAILED' }}"
-      - "KRBR Auth Check  : {{ 'ok' if krb_raw_check.rc == 0 else 'FAILED' }}"
-      - "WEB  UI Check    : {{ 'ok' if (web_check.status | default(-1)) == 200 else 'FAILED' }}"
-
-# SECTION 1: Setup on the Source (Primary)
-- name: "Verification - Setup Test Data on Master"
-  delegate_to: "{{ groups['ipa'][0] }}"
-  become: yes
-  block:
-    - name: Master - Authenticate admin
-      shell: "echo '{{ ipa_admin_password }}' | kinit admin"
-      no_log: true
-
-    - name: Master - Create test record (Verify LDAP write)
-      command: "ipa dnsrecord-add {{ search_domain }} remotecheck --a-rec=1.2.3.4"
-      register: dns_create
-      failed_when: 
-        - dns_create.rc != 0 
-        - "'already exists' not in dns_create.stderr"
-
-# SECTION 2: Probe from the Helper (Targeting the Secondary)
+# --- SECTION 2: Probe from the Helper (Targeting the Secondary) ---
 - name: "Verification - Query Secondary from Helper"
-  delegate_to: "{{ next_host }}" # This is 'helper'
+  delegate_to: "{{ next_host }}"
   become: yes
   block:
     - name: Helper - Force DNS to Secondary
@@ -115,46 +39,39 @@
         backup: yes
       register: helper_dns_backup
 
-    - name: Helper - Verify Data sync to Secondary (Replication Check)
+    - name: Helper - Verify Data sync (Replication Check)
       command: "host remotecheck.{{ search_domain }}"
       register: dns_verify
       retries: 3
       delay: 5
       until: dns_verify.rc == 0
 
+    - name: Helper - Raw Kerberos Check
+      shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
+      environment:
+        KRB5_CONFIG: "/dev/null" 
+        KRB5_KDC: "{{ nameserver_ip }}"
+      register: krb_raw_check
+
     - name: Helper - Verify Web UI on Secondary
       uri:
         url: "https://{{ nameserver_ip }}/ipa/ui/"
         validate_certs: no
         status_code: 200
+      register: web_check
 
-
-# SECTION 3: Cleanup on the Source (Primary)
-- name: "Verification - Cleanup Master"
-  delegate_to: "{{ groups['ipa'][0] }}"
-  become: yes
-  block:
-    - name: Master - Remove test record
-      command: "ipa dnsrecord-del {{ search_domain }} remotecheck --a-rec=1.2.3.4"
-  always: true
-  ignore_errors: yes
-
-- name: Cleanup Operations
-  delegate_to: "{{ next_host }}"
-  become: yes
-  block:
-    - name: Remote - Restore Original DNS
-      # Uses the specific backup file name created by the copy task
-      shell: "mv {{ dns_backup_info.backup_file }} /etc/resolv.conf"
-      when: dns_backup_info.backup_file is defined
+  always: # This must be followed by a list of tasks, NOT "true"
+    - name: Helper - Restore Original DNS
+      shell: "mv {{ helper_dns_backup.backup_file }} /etc/resolv.conf"
+      when: helper_dns_backup.backup_file is defined
       ignore_errors: yes
 
-    - name: Remote - Clear Tickets
+    - name: Helper - Clear Tickets
       command: "kdestroy -A"
       changed_when: false
 
-# --- CLEANUP ON MASTER ---
-- name: Master - Remove test entries
+# --- SECTION 3: Final Cleanup on Master ---
+- name: "Verification - Cleanup Master"
   delegate_to: "{{ groups['ipa'][0] }}"
   become: yes
   block:
@@ -165,4 +82,3 @@
     - name: Master - Remove test User
       command: "ipa user-del remoteuser"
       failed_when: false
-  when: always # Run even if tests fail
