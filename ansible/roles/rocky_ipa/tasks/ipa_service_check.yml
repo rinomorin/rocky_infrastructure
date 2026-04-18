@@ -5,6 +5,15 @@
     ipa_test_user: "{{ lookup('env', 'ipa_test_user_password') }}"
     ipa_test_user_password: "{{ lookup('env', 'ipa_test_user_password') }}"
 
+- name: Network Prep - Force Temporary DNS
+  become: yes
+  run_once: true
+  ansible.builtin.shell: |
+    echo "nameserver 8.8.8.8" > /etc/resolv.conf
+    echo "nameserver 1.1.1.1" >> /etc/resolv.conf
+  changed_when: false
+
+
 # SECTION 1: Setup on the Source (Primary)
 - name: "Verification - Setup Test Data on Master"
   delegate_to: "{{ groups['ipa'][0] }}"
