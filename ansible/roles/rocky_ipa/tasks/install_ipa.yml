@@ -133,16 +133,6 @@
     this_url: "{{ lookup('pipe', 'grep -m1 \"url =\" ' + playbook_dir + '/../../.git/config | cut -d\"=\" -f2 | xargs') }}"
   run_once: true
 
-# - name: Ensure ansible-pull runs again after reboot
-#   become: yes
-#   ansible.builtin.cron:
-#     name: "resume-ipa-config"
-#     special_time: reboot
-#     # We add a small sleep to ensure the network is fully up before pulling
-#     job: "sleep 30 && /opt/ansible_work/infra/ansible-execute  -d /opt/ansible_work/infra -i ~/deploy/inventory.yml -U {{ this_url }} ansible/playbooks/config_infra.yml"
-#   # We use the variable name directly here without extra brackets
-#   when: inventory_hostname == controller_node
-
 - name: Handle Reboot Logic
   become: yes
   block:
