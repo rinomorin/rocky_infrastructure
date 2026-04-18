@@ -14,13 +14,15 @@
 
     - name: Ensure latest stable collections are installed on controller
       community.general.ansible_galaxy_install:
+        type: collection  # <--- Added this required argument
         name: "{{ item }}"
         upgrade: yes
       loop:
         - community.general
         - ansible.posix
         - kubernetes.core
-      # If port 53 is open on the Master, we are "internal" -> Skip Galaxy
+      # If port 53 timed out (failed), it means ipa01 isn't restricting us yet.
+      # So we are free to hit the internet for updates.
       when: internal_dns_check.failed
       ignore_errors: yes
 
