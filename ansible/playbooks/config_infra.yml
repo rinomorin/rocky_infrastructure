@@ -6,31 +6,29 @@
   tasks:
     - name: "Check if IPA Master DNS is reachable (Internal Network Check)"
       ansible.builtin.wait_for:
-        host: "192.168.100.10" # Generic master IP
+        host: "192.168.100.10"
         port: 53
         timeout: 2
       register: internal_dns_check
-      # We don't want the play to stop if it times out
-      failed_when: 
-        - "{{ 'Timeout when waiting' not in internal_dns_check.msg }}"
-      ignore_errors: yes
-  
-    - name: see Results
-      debug:
-        msg: "{{ internal_dns_check}}"
+      # This keeps the task GREEN (Success)
+      failed_when: false 
+
+    - name: "Set Internal Status Fact"
+      ansible.builtin.set_fact:
+        # We are 'offline' from Galaxy if the timeout message is present
+        is_internal_only: "{{ 'Timeout' in internal_dns_check.msg | default('') }}"
 
     - name: Ensure latest stable collections are installed on controller
       community.general.ansible_galaxy_install:
         type: collection
         name: "{{ item }}"
-        state: latest  # This replaces 'upgrade: yes'
+        state: latest
       loop:
         - community.general
         - ansible.posix
         - kubernetes.core
-      # If the network check TIMED OUT (failed), we run this to hit the internet.
-      # If the check PASSED (internal DNS found), we skip this to avoid network errors.
-      when: internal_dns_check.failed 
+      # If we are NOT internal-only (Master DNS was not found), we run Galaxy
+      when: is_internal_only
       ignore_errors: yes
 
 # - name: Configure IPA Infrastructure
