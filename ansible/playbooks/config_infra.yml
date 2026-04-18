@@ -11,12 +11,10 @@
         timeout: 2
       register: internal_dns_check
       # We don't want the play to stop if it times out
-      failed_when: false 
+      failed_when: 
+        - internal_dns_check.failed is defined
+        - "{{ 'Timeout when waiting' not in internal_dns_check.failed }}"
 
-    - name: check ipa Results
-      debug:
-        msg: "{{internal_dns_check.failed}} from {{internal_dns_check}}"
-            
     - name: Ensure latest stable collections are installed on controller
       community.general.ansible_galaxy_install:
         type: collection
