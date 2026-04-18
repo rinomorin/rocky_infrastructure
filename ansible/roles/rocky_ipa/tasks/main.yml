@@ -156,4 +156,4 @@
           - ipa_stage == 'running'
           - ipa_type == 'replica'
 
-when: ipa_type in ['primary', 'master', 'member', 'replica']
+  when: ipa_type in ['primary', 'master', 'member', 'replica']
