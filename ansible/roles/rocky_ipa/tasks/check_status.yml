@@ -1,6 +1,6 @@
 - name: Check if IPA package is actually installed
   ansible.builtin.shell: "rpm -q ipa-server"
-  rgister: rpm_check
+  register: rpm_check
   failed_when: false
   changed_when: false
 
