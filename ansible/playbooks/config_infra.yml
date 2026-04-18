@@ -30,31 +30,12 @@
       changed_when: false # These commands check for updates every time
       when: is_internal_only
 
-
-
-# # 1. Prepare Environment
-# - name: load environment
-#   hosts: all
-#   gather_facts: false
-#   tasks:
-#     - name: Ensure latest stable collections are installed on controller
-#       delegate_to: localhost
-#       become: false
-#       run_once: true
-#       command: "ansible-galaxy collection install {{ item }} --upgrade"
-#       loop:
-#         - community.general
-#         - ansible.posix
-#         - kubernetes.core  # Highly recommended for your FCOS/K8s work
-#       changed_when: false # These commands check for updates every time
-
-
-# - name: Configure IPA Infrastructure
-#   hosts: ipa_servers:helpers
-#   gather_facts: true
-#   serial: 1
-#   roles:
-#     - role: rocky_ipa
+- name: Configure IPA Infrastructure
+  hosts: ipa_servers:helpers
+  gather_facts: true
+  serial: 1
+  roles:
+    - role: rocky_ipa
   
 
   
