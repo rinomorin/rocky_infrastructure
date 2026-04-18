@@ -1,0 +1,20 @@
+ active_conn_name.stdout 
+ active_conn_name.stdout 
+ ansible_default_ipv4.interface 
+ ansible_fqdn 
+ ansible_fqdn 
+ ansible_fqdn 
+ inventory_hostname_short 
+ ipa_admin_password 
+ ipa_admin_password 
+ ipa_domain 
+ ipa_domain 
+ ipa_domain | lower 
+ ipa_master_fqdn 
+ ipa_master_fqdn 
+ ipa_master_ip 
+ ipa_master_ip 
+ ipa_master_ip 
+ ipa_master_ip 
+ ipa_realm | upper 
+ search_domain 

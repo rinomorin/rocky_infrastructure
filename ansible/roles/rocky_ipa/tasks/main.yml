@@ -51,6 +51,7 @@
       
       # --- STAGE 2: configrue the primary ---      
       - name: Process Stage 2 - Primary host Configuration
+        no_log: true
         import_tasks: ipa_master.yml
         vars:
           ipa_domain: "{{ lookup('env', 'ipa_domain') |lower}}"
@@ -80,7 +81,7 @@
             - "ipa_master_ip {{ipa_master_ip}}"
             - "controller_node {{controller_node}}"
 
-      # --- STAGE 3: verification Master Settings ---
+      # --- Mid STAGE 2: verification Master Settings ---
       - name: Verify connection 
         import_tasks: ipa_service_check.yml
         no_log: true
@@ -93,6 +94,21 @@
         when: 
           - ipa_stage == 'running'
           - ipa_type in ('primary', 'master')
+
+      - name:  Process Stage 3 - replica host Configuration
+        import_tasks: ipa_replica.yml
+        vars:
+          ipa_master: "{{ hostvars[ipa_master_host]['inventory_hostname'] }}"
+          ipa_master_ip: "{{ hostvars[ipa_master_host]['ansible_host'] }}"
+          ipa_primary_fqdn: "{{ hostvars[ipa_master_host]['hostname'] }}"
+          ipa_domain: "{{ lookup('env', 'ipa_domain') |lower}}"
+          nameserver_ip: "{{ ipa_master_ip }} "
+          ipa_master_fqdb: "{{ hostvars[groups['ipa'][0]]['hostname'] }}"
+          ipa_admin_password: "{{ lookup('env', 'ipa_admin_password')}}"
+        when: 
+          - ipa_stage == 'running'
+          - ipa_type in ('replica')
+
 
   #   # --- STAGE 3 & 4: Self-Healing & Maintenance ---
   #   - name: Self-healing - Ensure Services are Running
