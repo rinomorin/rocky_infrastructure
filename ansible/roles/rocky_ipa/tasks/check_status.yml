@@ -1,6 +1,13 @@
+- name: Remote - Verify DNS resolution via Python
+  ansible.builtin.shell: |
+    python3 -c "import socket; print(socket.gethostbyname('example.home.acme.ca'))"
+  register: dns_verify
+  changed_when: false
+
+
 - name: Check if IPA package is actually installed
   ansible.builtin.shell: "rpm -q ipa-server"
-  register: rpm_check
+  rgister: rpm_check
   failed_when: false
   changed_when: false
 

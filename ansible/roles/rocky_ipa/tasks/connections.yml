@@ -5,6 +5,14 @@
   register: set_hostname
   changed_when: false
 
+- name: Ensure DNS lookup utilities are installed on all IPA nodes
+  ansible.builtin.package:
+    name: bind-utils
+    state: present
+  become: true
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['ipa'] }}"
+
 - name: Allow IPA services in the drop zone
   ansible.posix.firewalld:
     zone: drop
