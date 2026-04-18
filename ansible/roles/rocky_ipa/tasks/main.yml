@@ -120,7 +120,7 @@
           # We want to test the Secondary's IP
           nameserver_ip: "{{ ansible_host }}" 
           # The physical node performing the test
-        next_host: "{{ hostvars[groups['helpers'][0]]['ansible_host'] }}"
+          next_host: "{{ hostvars[groups['helpers'][0]]['ansible_host'] }}"
         when: 
           - ipa_stage == 'running'
           - ipa_type == 'replica'
@@ -151,7 +151,7 @@
           # We want to test the Secondary's IP
           nameserver_ip: "{{ ansible_host }}" 
           # The physical node performing the test
-        next_host: "{{ hostvars[groups['ipa'][1]]['ansible_host'] }}"
+          next_host: "{{ hostvars[groups['ipa'][1]]['ansible_host'] }}"
         when: 
           - ipa_stage == 'running'
           - ipa_type == 'replica'
