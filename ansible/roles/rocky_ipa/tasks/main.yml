@@ -135,43 +135,33 @@
           - ipa_type == 'replica'
           - "'helpers' not in groups"
 
-      - name:  Process Stage 4 - replica host Configuration (helper)
+      - name: Process Stage 4 - replica host Configuration (helper)
         import_tasks: ipa_replica.yml
         vars:
-          # Test purpose only
-          ipa_test_user: "{{ lookup('env', 'ipa_test_user_password') }}"
-          ipa_test_user_password: "{{ lookup('env', 'ipa_test_user_password') }}"
-          ipa_master: "{{ hostvars[ipa_master_host]['inventory_hostname'] }}"
-          ipa_master_ip: "{{ hostvars[ipa_master_host]['ansible_host'] }}"
-          ipa_primary_fqdn: "{{ hostvars[ipa_master_host]['hostname'] }}"
-          ipa_domain: "{{ lookup('env', 'ipa_domain') |lower}}"
-          nameserver_ip: "{{ ipa_master_ip }} "
-          ipa_master_fqdb: "{{ hostvars[groups['ipa'][0]]['hostname'] }}"
-          ipa_admin_password: "{{ lookup('env', 'ipa_admin_password')}}"
+          ipa_master: "{{ hostvars[groups['ipa'][0]]['inventory_hostname'] }}"
+          ipa_master_ip: "{{ hostvars[groups['ipa'][0]]['ansible_host'] }}"
+          ipa_domain: "{{ lookup('env', 'ipa_domain') | lower }}"
+          nameserver_ip: "{{ hostvars[groups['ipa'][0]]['ansible_host'] }}"
+          ipa_type: "replica"
         when: 
-          - ipa_stage == 'unconfigured'
-          - ipa_type in ('replica')
-          - "'helpers' in groups"
+          - inventory_hostname in groups.get('helpers', [])
+          # Only run if the IPA config file is NOT found
+          - not ipa_installed_check.stat.exists
 
       # --- Inside ipa_replica.yml ---
 
-      - name: Final Service Validation
-        import_tasks: ipa_service_check.yml
+      - name: Process Stage 4 - replica host Configuration (helper)
+        import_tasks: ipa_replica.yml
         vars:
-          # Test purpose only
-          ipa_test_user: "{{ lookup('env', 'ipa_test_user_password') }}"
-          ipa_test_user_password: "{{ lookup('env', 'ipa_test_user_password') }}"
-          ipa_admin_password: "{{ lookup('env', 'ipa_admin_password') }}"
-          search_domain: "{{ lookup('env', 'ipa_domain') | lower }}"
-          # We want to test the Secondary's IP
-          nameserver_ip: "{{ ansible_host }}" 
-          # The physical node performing the test
-        next_host: "{{ hostvars[groups['ipa'][1]]['ansible_host'] }}"
+          ipa_master: "{{ hostvars[groups['ipa'][0]]['inventory_hostname'] }}"
+          ipa_master_ip: "{{ hostvars[groups['ipa'][0]]['ansible_host'] }}"
+          ipa_domain: "{{ lookup('env', 'ipa_domain') | lower }}"
+          nameserver_ip: "{{ hostvars[groups['ipa'][0]]['ansible_host'] }}"
+          ipa_type: "replica"
         when: 
-          - ipa_stage == 'running'
-          - ipa_type == 'replica'
-
-
+          - inventory_hostname in groups.get('helpers', [])
+          # Only run if the IPA config file is NOT found
+          - not ipa_installed_check.stat.exists
 
   #   # --- STAGE 3 & 4: Self-Healing & Maintenance ---
   #   - name: Self-healing - Ensure Services are Running
