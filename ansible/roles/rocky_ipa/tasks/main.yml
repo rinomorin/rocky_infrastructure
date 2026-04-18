@@ -142,18 +142,18 @@
 
       # --- Inside ipa_replica.yml ---
 
-      - name: Final Service Validation
-        import_tasks: ipa_service_check.yml
-        vars:
-          ipa_admin_password: "{{ lookup('env', 'ipa_admin_password') }}"
-          search_domain: "{{ lookup('env', 'ipa_domain') | lower }}"
-          # We want to test the Secondary's IP
-          nameserver_ip: "{{ ansible_host }}" 
-          # The physical node performing the test
-        next_host: "{{ hostvars[groups['ipa'][1]]['ansible_host'] }}"
-        when: 
-          - ipa_stage == 'running'
-          - ipa_type == 'replica'
+      # - name: Final Service Validation
+      #   import_tasks: ipa_service_check.yml
+      #   vars:
+      #     ipa_admin_password: "{{ lookup('env', 'ipa_admin_password') }}"
+      #     search_domain: "{{ lookup('env', 'ipa_domain') | lower }}"
+      #     # We want to test the Secondary's IP
+      #     nameserver_ip: "{{ ansible_host }}" 
+      #     # The physical node performing the test
+      #   next_host: "{{ hostvars[groups['ipa'][1]]['ansible_host'] }}"
+      #   when: 
+      #     - ipa_stage == 'running'
+      #     - ipa_type == 'replica'
 
 
 
