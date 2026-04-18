@@ -1,27 +1,28 @@
 ---
-# Inside config_infra.yml
-- name: "Check if IPA Master DNS is reachable (Internal Network Check)"
-  ansible.builtin.wait_for:
-    host: "{{ hostvars[groups['ipa'][0]]['ansible_host'] }}"
-    port: 53
-    timeout: 2
-  register: internal_dns_check
-  ignore_errors: yes
-  delegate_to: localhost
+- name: "Bootstrap Controller and Check Network"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: "Check if IPA Master DNS is reachable (Internal Network Check)"
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[groups['ipa'][0]]['ansible_host'] }}"
+        port: 53
+        timeout: 2
+      register: internal_dns_check
+      ignore_errors: yes
 
-- name: Ensure latest stable collections are installed on controller
-  delegate_to: localhost
-  run_once: true
-  community.general.ansible_galaxy_install:
-    name: "{{ item }}"
-    upgrade: yes
-  loop:
-    - community.general
-    - ansible.posix
-    - kubernetes.core
-  # Logic: If we CAN reach the internal Master DNS, skip Galaxy updates
-  when: internal_dns_check.failed
-  ignore_errors: yes
+    - name: Ensure latest stable collections are installed on controller
+      community.general.ansible_galaxy_install:
+        name: "{{ item }}"
+        upgrade: yes
+      loop:
+        - community.general
+        - ansible.posix
+        - kubernetes.core
+      # If port 53 is open on the Master, we are "internal" -> Skip Galaxy
+      when: internal_dns_check.failed
+      ignore_errors: yes
 
 - name: Configure IPA Infrastructure
   hosts: ipa_servers:helpers
