@@ -31,12 +31,12 @@
       when: internal_dns_check.failed 
       ignore_errors: yes
 
-- name: Configure IPA Infrastructure
-  hosts: ipa_servers:helpers
-  gather_facts: true
-  serial: 1
-  roles:
-    - role: rocky_ipa
+# - name: Configure IPA Infrastructure
+#   hosts: ipa_servers:helpers
+#   gather_facts: true
+#   serial: 1
+#   roles:
+#     - role: rocky_ipa
   
 
   
