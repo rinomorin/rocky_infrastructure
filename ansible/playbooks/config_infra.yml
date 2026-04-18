@@ -2,7 +2,7 @@
 - name: "Bootstrap Controller and Check Network"
   hosts: localhost
   connection: local
-  gather_facts: false
+  gather_facts: False
   tasks:
     - name: "Check if IPA Master DNS is reachable (Internal Network Check)"
       ansible.builtin.wait_for:
@@ -19,17 +19,35 @@
         is_internal_only: "{{ 'Timeout' in internal_dns_check.msg | default('') }}"
 
     - name: Ensure latest stable collections are installed on controller
-      community.general.ansible_galaxy_install:
-        type: collection
-        name: "{{ item }}"
-        state: latest
+      delegate_to: localhost
+      become: false
+      run_once: true
+      command: "ansible-galaxy collection install {{ item }} --upgrade"
       loop:
         - community.general
         - ansible.posix
-        - kubernetes.core
-      # If we are NOT internal-only (Master DNS was not found), we run Galaxy
+        - kubernetes.core  # Highly recommended for your FCOS/K8s work
+      changed_when: false # These commands check for updates every time
       when: is_internal_only
-      ignore_errors: yes
+
+
+
+# # 1. Prepare Environment
+# - name: load environment
+#   hosts: all
+#   gather_facts: false
+#   tasks:
+#     - name: Ensure latest stable collections are installed on controller
+#       delegate_to: localhost
+#       become: false
+#       run_once: true
+#       command: "ansible-galaxy collection install {{ item }} --upgrade"
+#       loop:
+#         - community.general
+#         - ansible.posix
+#         - kubernetes.core  # Highly recommended for your FCOS/K8s work
+#       changed_when: false # These commands check for updates every time
+
 
 # - name: Configure IPA Infrastructure
 #   hosts: ipa_servers:helpers
