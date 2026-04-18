@@ -6,7 +6,7 @@
   tasks:
     - name: "Check if IPA Master DNS is reachable (Internal Network Check)"
       ansible.builtin.wait_for:
-        host: "192.168.100.10" # Generic master IP
+        host: "8.8.8.8" # Generic master IP
         port: 53
         timeout: 2
       register: internal_dns_check
