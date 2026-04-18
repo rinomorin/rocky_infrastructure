@@ -86,7 +86,6 @@
         import_tasks: ipa_service_check.yml
         no_log: true
         vars:
-          ipa_test_user_password: "{{ lookup('env', 'ipa_test_user_password') }}"
           ipa_admin_password: "{{ lookup('env', 'ipa_admin_password')}}"
           search_domain: "{{ lookup('env', 'ipa_domain') |lower}}"
           nameserver_ip: "{{ ipa_master_ip }} "
