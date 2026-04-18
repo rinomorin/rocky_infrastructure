@@ -13,7 +13,7 @@
       # We don't want the play to stop if it times out
       failed_when: 
         - internal_dns_check.failed is defined
-        - "{{ 'Timeout when waiting' not in internal_dns_check.failed }}"
+        - "{{ 'Timeout when waiting' not in internal_dns_check.msg }}"
 
     - name: Ensure latest stable collections are installed on controller
       community.general.ansible_galaxy_install:
