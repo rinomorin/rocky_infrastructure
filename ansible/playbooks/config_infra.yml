@@ -1,3 +1,9 @@
+- name: "Check if IPA is already configured (prevents Galaxy timeout)"
+  ansible.builtin.stat:
+    path: /etc/ipa/default.conf
+  register: ipa_installed_check
+  delegate_to: localhost
+
 - name: Ensure latest stable collections are installed on controller
   delegate_to: localhost
   run_once: true
@@ -8,9 +14,8 @@
     - community.general
     - ansible.posix
     - kubernetes.core
-  when: 
-    - (hostvars['helper']['ipa_stage'] is not defined) or 
-      (hostvars['helper']['ipa_stage'] == 'unconfigured')
+  # Skip ONLY if the IPA config file already exists
+  when: not ipa_installed_check.stat.exists
   ignore_errors: yes
 
 - name: Configure IPA Infrastructure
