@@ -29,6 +29,7 @@
       - ipa-server
       - ipa-server-dns
       - nc
+      - bind-utils
       - python3-pexpect
       - crypto-policies-scripts
     state: present
