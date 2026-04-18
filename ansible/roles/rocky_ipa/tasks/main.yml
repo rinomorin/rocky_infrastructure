@@ -108,7 +108,7 @@
         when: 
           - ipa_stage == 'unconfigured'
           - ipa_type in ('replica')
-
+          - "'helpers' not in groups"
 
   #   # --- STAGE 3 & 4: Self-Healing & Maintenance ---
   #   - name: Self-healing - Ensure Services are Running
