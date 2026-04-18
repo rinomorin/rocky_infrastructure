@@ -50,12 +50,20 @@
     - 3269/tcp
 
 - name: Set default firewall zone to drop
-  ansible.posix.firewalld:
-    default_zone: drop
-    state: enabled
-    permanent: true
-    immediate: true
+  ansible.builtin.command: firewall-cmd --set-default-zone=drop
   become: true
+  # Only run this if the default zone isn't already drop
+  register: zone_check
+  changed_when: "'drop' not in zone_check.stdout"
+  # We check the current default first
+  check_mode: false
+  
+# Optional: Verify the active zone is indeed drop
+- name: Verify active default zone
+  ansible.builtin.command: firewall-cmd --get-default-zone
+  register: active_zone
+  changed_when: false
+  failed_when: "'drop' not in active_zone.stdout"
 
 # - name: Configure firewall for IPA
 #   become: true
