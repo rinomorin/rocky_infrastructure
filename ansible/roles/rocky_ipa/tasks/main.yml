@@ -106,7 +106,7 @@
           ipa_master_fqdb: "{{ hostvars[groups['ipa'][0]]['hostname'] }}"
           ipa_admin_password: "{{ lookup('env', 'ipa_admin_password')}}"
         when: 
-          - ipa_stage == 'running'
+          - ipa_stage == 'unconfigured'
           - ipa_type in ('replica')
 
 
