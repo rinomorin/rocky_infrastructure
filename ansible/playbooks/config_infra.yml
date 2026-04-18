@@ -1,34 +1,17 @@
-# 1. Prepare Environment
-- name: load environment
-  hosts: all
-  gather_facts: false
-  tasks:
-    - name: Ensure latest stable collections are installed on controller
-      delegate_to: localhost
-      become: false
-      run_once: true
-      command: "ansible-galaxy collection install {{ item }} --upgrade"
-      loop:
-        - community.general
-        - ansible.posix
-        - kubernetes.core  # Highly recommended for your FCOS/K8s work
-      changed_when: false # These commands check for updates every time
-
-# 1. Prepare Environment
-- name: load environment
-  hosts: all
-  gather_facts: false
-  tasks:
-    - name: Ensure latest stable collections are installed on controller
-      delegate_to: localhost
-      become: false
-      run_once: true
-      command: "ansible-galaxy collection install {{ item }} --upgrade"
-      loop:
-        - community.general
-        - ansible.posix
-        - kubernetes.core  # Highly recommended for your FCOS/K8s work
-      changed_when: false # These commands check for updates every time
+- name: Ensure latest stable collections are installed on controller
+  delegate_to: localhost
+  run_once: true
+  community.general.ansible_galaxy_install:
+    name: "{{ item }}"
+    upgrade: yes
+  loop:
+    - community.general
+    - ansible.posix
+    - kubernetes.core
+  when: 
+    - (hostvars['helper']['ipa_stage'] is not defined) or 
+      (hostvars['helper']['ipa_stage'] == 'unconfigured')
+  ignore_errors: yes
 
 - name: Configure IPA Infrastructure
   hosts: ipa_servers:helpers
