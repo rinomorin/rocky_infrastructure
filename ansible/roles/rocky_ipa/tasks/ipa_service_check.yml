@@ -99,7 +99,7 @@
       register: dns_backup_info
 
     - name: Remote - Verify DNS resolution
-      command: "host remotecheck.{{ search_domain }}  {{ nameserver_ip }}"
+      command: "host remotecheck.{{ search_domain }}"
       register: dns_verify
 
     - name: Remote - Raw LDAP Check

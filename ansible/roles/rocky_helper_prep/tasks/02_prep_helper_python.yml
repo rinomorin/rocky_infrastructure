@@ -4,7 +4,7 @@
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
     {{ Orchestrator_user }}@{{ helper_ip }}
     "sudo dnf install -y python3.12 python3.12-pip python3.12-devel ipa-server \
-      bind-utils nc ipa-server-dns nc python3-pexpect crypto-policies-scripts - krb5-workstation && 
+      bind-utils nc ipa-server-dns nc python3-pexpect crypto-policies-scripts && 
     python3.12 -m venv ~/deploy/venv && 
     ~/deploy/venv/bin/pip install --upgrade pip setuptools wheel && 
     ~/deploy/venv/bin/pip install ansible ansible-core jmespath"
