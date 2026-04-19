@@ -103,11 +103,15 @@
       register: dns_verify
 
     - name: Remote - Raw LDAP Check
-      command: >
+      ansible.builtin.command: >
         ldapsearch -x -H ldap://{{ nameserver_ip }} 
-        -b "cn=users,cn=accounts,dc=home,dc=morinsoft,dc=ca" 
+        -b "cn=users,cn=accounts,{{ 'dc=' + ipa_domain | replace('.', ',dc=') }}" 
         "uid=remoteuser"
       register: ldap_raw_check
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['ipa'] }}"
+      # We might want to ignore errors if the user doesn't exist yet
+      # ignore_errors: yes
 
     - name: Remote - Raw Kerberos Check
       shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
