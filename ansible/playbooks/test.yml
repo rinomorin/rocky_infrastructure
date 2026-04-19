@@ -1,0 +1,60 @@
+---
+- name: Map VM disk dependencies
+  hosts: kvm
+  become: true
+  vars:
+    vm_map: {}
+    golden_image_name: "gi-template-20260419"
+
+  tasks:
+    - name: Get VM disk and backing store info
+      shell: |
+        for vm in $(virsh list --name --all); do
+            xml=$(virsh dumpxml "$vm")
+            disk_path=$(echo "$xml" | xmllint --xpath "string(//disk/source/@file)" - 2>/dev/null)
+            back_path=$(echo "$xml" | xmllint --xpath "string(//disk/backingStore/source/@file)" - 2>/dev/null)
+            disk_file=$(basename "$disk_path")
+            link_file=$( [ -n "$back_path" ] && basename "$back_path" || echo "none" )
+            echo "vm=$vm,disk_file=$disk_file,link_file=$link_file"
+        done
+      register: disk_output
+      changed_when: false
+
+    - name: Parse output into vm_map
+      set_fact:
+        vm_map: "{{ vm_map | combine({ item.split(',')[0].split('=')[1] : item.split(',')[2].split('=')[1] }) }}"
+      loop: "{{ disk_output.stdout_lines }}"
+      when: "item.split(',')[2].split('=')[1] != 'none'"
+
+    - name: Identify Protected VM Names
+      set_fact:
+        do_not_delete_list: "{{ vm_map.values() | map('regex_replace', '\\.qcow2$', '') | unique | list + [golden_image_name] }}"
+
+    - name: Generate Safe to Delete list
+      set_fact:
+        # 1. Map to get VM names
+        # 2. Difference to remove protected parents
+        # 3. Select only those starting with 'gi-'
+        safe_to_delete: "{{ disk_output.stdout_lines | map('regex_replace', '^vm=([^,]+),.*', '\\1') | difference(do_not_delete_list) | select('match', '^gi-') | list }}"
+
+    - name: Final Report
+      debug:
+        msg: 
+          - "Full Dependency Map: {{ vm_map }}"
+          - "Protection List (VM Names): {{ do_not_delete_list }}"
+          - "Safe to Delete: {{ safe_to_delete }}"
+
+    - name: Delete safe VMs and remove their disks
+      shell: |
+        # Ensure the VM is stopped before undefining
+        virsh destroy "{{ item }}" 2>/dev/null || true
+        # Remove the VM definition and all associated storage files
+        virsh undefine "{{ item }}" --remove-all-storage
+      loop: "{{ safe_to_delete }}"
+      when: safe_to_delete | length > 0
+      register: deletion_output
+
+    - name: Confirm Deletion Results
+      debug:
+        msg: "Successfully removed: {{ safe_to_delete }}"
+      when: safe_to_delete | length > 0

@@ -1,36 +1,49 @@
-# tasks/pre-cleanup.yml
-
-- name: Identify all disks and backing files currently in use by Libvirt
+---
+- name: Audit VM disk and backing store metadata
   shell: |
-    for vm in $(virsh list --all --name); do
-      # Get the active disk path
-      disk=$(virsh domblklist "$vm" --details | grep 'file' | awk '{print $4}')
-      [ -z "$disk" ] && continue
-      echo "$disk"
-      # Follow the chain to find the golden image it depends on
-      qemu-img info --backing-chain "$disk" 2>/dev/null | grep 'image:' | awk '{print $2}'
-    done | sort -u
-  register: active_disks
+    for vm in $(virsh list --name --all); do
+        xml=$(virsh dumpxml "$vm")
+        disk_path=$(echo "$xml" | xmllint --xpath "string(//disk/source/@file)" - 2>/dev/null)
+        back_path=$(echo "$xml" | xmllint --xpath "string(//disk/backingStore/source/@file)" - 2>/dev/null)
+        disk_file=$(basename "$disk_path")
+        link_file=$( [ -n "$back_path" ] && basename "$back_path" || echo "none" )
+        echo "vm=$vm,disk_file=$disk_file,link_file=$link_file"
+    done
+  register: disk_output
   changed_when: false
 
-- name: Refresh Libvirt Storage Pool
-  command: "virsh pool-refresh {{ pool_name | default('default') }}"
-  changed_when: false
+- name: Identify protected parent VMs
+  set_fact:
+    vm_map: "{{ vm_map | default({}) | combine({ item.split(',')[0].split('=')[1] : item.split(',')[2].split('=')[1] }) }}"
+  loop: "{{ disk_output.stdout_lines }}"
+  when: "item.split(',')[2].split('=')[1] != 'none'"
 
-- name: Get list of all volumes in pool
-  # NR>2 skips the virsh table headers to prevent 'Name' or '----' from being treated as files
-  shell: "virsh vol-list {{ pool_name | default('default') }} | awk 'NR>2 {print $1}'"
-  register: vol_list
-  changed_when: false
+- name: Set protection and deletion lists
+  set_fact:
+    do_not_delete_list: "{{ vm_map.values() | map('regex_replace', '\\.qcow2$', '') | unique | list + [golden_image_name] }}"
+    
+- name: Determine safe to delete list
+  set_fact:
+    # 1. Map: Get all VM names
+    # 2. Difference: Remove protected parents/golden image
+    # 3. Select: Only keep those starting with the prefix (e.g., gi-)
+    # 4. Reject: Remove any VM that contains the build_date (Protecting today's build)
+    safe_to_delete: >-
+      {{ disk_output.stdout_lines 
+         | map('regex_replace', '^vm=([^,]+),.*', '\\1') 
+         | difference(do_not_delete_list) 
+         | select('match', vm_prefix_filter) 
+         | reject('search', build_date) 
+         | list }}
 
-- name: Remove orphaned Golden Images (File + XML)
-  command: "virsh vol-delete --pool {{ pool_name | default('default') }} {{ item }}"
-  loop: "{{ vol_list.stdout_lines }}"
-  vars:
-    full_path: "{{ image_path | default('/var/lib/libvirt/images') }}/{{ item }}"
-  when:
-    - "item is search('^gi-.*\\.qcow2$')"
-    - "full_path not in active_disks.stdout_lines"
-    - "item not in active_disks.stdout"
-  loop_control:
-    label: "Cleanup check for {{ item }}"
+- name: Execute VM and storage removal
+  shell: |
+    virsh destroy "{{ item }}" 2>/dev/null || true
+    virsh undefine "{{ item }}" --remove-all-storage
+  loop: "{{ safe_to_delete }}"
+  when: safe_to_delete | length > 0
+
+- name: Report cleanup status
+  debug:
+    msg: "Cleaned up the following VMs: {{ safe_to_delete }}"
+  when: safe_to_delete | length > 0

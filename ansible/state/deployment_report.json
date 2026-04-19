@@ -133,6 +133,25 @@
                 "k8s": "1.34"
             }
         },
+        "gi-infra-10-20260419": {
+            "build_date": "20260419",
+            "login": {
+                "ssh_key_path": "~/.ssh/id_rsa.pub",
+                "user": "cloud_helper"
+            },
+            "name": "gi-infra-10-20260419",
+            "os_variant": "10",
+            "profile": "infra",
+            "specs": {
+                "cpu": 2,
+                "disk": 40,
+                "ram": 4096
+            },
+            "versions": {
+                "crio": "1.34",
+                "k8s": "1.34"
+            }
+        },
         "gi-k8s-9-20260410": {
             "build_date": "20260410",
             "login": {
@@ -265,6 +284,25 @@
                 "crio": "1.34",
                 "k8s": "1.34"
             }
+        },
+        "gi-k8s-9-20260419": {
+            "build_date": "20260419",
+            "login": {
+                "ssh_key_path": "~/.ssh/id_rsa.pub",
+                "user": "cloud_helper"
+            },
+            "name": "gi-k8s-9-20260419",
+            "os_variant": "9",
+            "profile": "k8s",
+            "specs": {
+                "cpu": 4,
+                "disk": 60,
+                "ram": 8192
+            },
+            "versions": {
+                "crio": "1.34",
+                "k8s": "1.34"
+            }
         }
     },
     "infrastructure": {
@@ -272,27 +310,27 @@
             "cidr": "172.16.0.0/24",
             "fqdn": "helper.cloud.home.morinsoft.ca",
             "gateway": "172.16.0.1",
-            "image": "gi-k8s-9-20260418.qcow2",
+            "image": "gi-k8s-9-20260419.qcow2",
             "interfaces": {
                 "br-cluster": {
                     "cidr": "10.0.0.0/24",
                     "devname": "enp2s0",
                     "ip": "10.0.0.20",
-                    "mac": "52:54:00:fd:64:19",
+                    "mac": "52:54:00:0a:fa:38",
                     "name": "br-cluster"
                 },
                 "br-nat": {
                     "cidr": "172.16.0.0/24",
                     "devname": "enp1s0",
                     "ip": "DHCP",
-                    "mac": "52:54:00:28:85:9c",
+                    "mac": "52:54:00:13:ce:0e",
                     "name": "br-nat"
                 },
                 "default": {
                     "cidr": "192.168.100.0/24",
                     "devname": "enp3s0",
                     "ip": "192.168.100.20",
-                    "mac": "52:54:00:80:f0:45",
+                    "mac": "52:54:00:83:ed:fa",
                     "name": "default"
                 }
             },
@@ -302,13 +340,13 @@
             "profile": "k8s",
             "provider_ip": "192.168.100.20",
             "provision_ip": "10.0.0.20",
-            "reachable_ip": "172.16.0.110"
+            "reachable_ip": "172.16.0.117"
         },
         "ipa01": {
             "cidr": "192.168.100.0/24",
             "fqdn": "ipa01.home.morinsoft.ca",
             "gateway": "192.168.100.1",
-            "image": "gi-infra-10-20260418.qcow2",
+            "image": "gi-infra-10-20260419.qcow2",
             "interfaces": {
                 "br-cluster": {
                     "cidr": "10.0.0.0/24",
@@ -326,7 +364,7 @@
                     "cidr": "192.168.100.0/24",
                     "devname": "enp1s0",
                     "ip": "192.168.100.10",
-                    "mac": "52:54:00:71:7c:86",
+                    "mac": "52:54:00:61:56:b4",
                     "name": "default"
                 }
             },
@@ -336,13 +374,13 @@
             "profile": "infra",
             "provider_ip": "192.168.100.10",
             "provision_ip": "none",
-            "reachable_ip": "192.168.100.180"
+            "reachable_ip": "192.168.100.248"
         },
         "ipa02": {
             "cidr": "192.168.100.0/24",
             "fqdn": "ipa02.home.morinsoft.ca",
             "gateway": "192.168.100.1",
-            "image": "gi-infra-10-20260418.qcow2",
+            "image": "gi-infra-10-20260419.qcow2",
             "interfaces": {
                 "br-cluster": {
                     "cidr": "10.0.0.0/24",
@@ -360,7 +398,7 @@
                     "cidr": "192.168.100.0/24",
                     "devname": "enp1s0",
                     "ip": "192.168.100.11",
-                    "mac": "52:54:00:a7:d5:71",
+                    "mac": "52:54:00:b9:7b:37",
                     "name": "default"
                 }
             },
@@ -370,7 +408,7 @@
             "profile": "infra",
             "provider_ip": "192.168.100.11",
             "provision_ip": "none",
-            "reachable_ip": "192.168.100.9"
+            "reachable_ip": "192.168.100.22"
         }
     }
 }

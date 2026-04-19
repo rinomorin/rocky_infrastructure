@@ -1,10 +1,7 @@
 - name: Run pre-cleanup.yml
-  vars:
-    image_path: "/var/lib/libvirt/images"
-    pool_name: "default"
+  become: true
   import_tasks: pre-cleanup.yml
   run_once: true
-
 
 - name: Run basic connectivity commands
   ansible.builtin.shell: |
