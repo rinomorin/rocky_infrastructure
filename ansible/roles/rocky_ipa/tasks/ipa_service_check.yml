@@ -99,18 +99,20 @@
       register: dns_backup_info
 
     - name: Remote - Verify DNS resolution
+      # Force host to use the master IP directly to avoid the helper's local DNS mess
       ansible.builtin.command: "host remotecheck.{{ search_domain }} {{ ipa_master_ip }}"
       register: dns_verify
-      # On the helper, we know this might be flaky during bootstrap
       ignore_errors: yes
 
     - name: Remote - Raw Kerberos Check
+      # We use 'kinit' but pass the KDC IP via the environment or a temporary config
       shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
-      environment:
-        KRB5_CONFIG: "/dev/null" 
-        KRB5_KDC: "{{ nameserver_ip }}"
       register: krb_raw_check
       ignore_errors: yes
+      environment:
+        # This forces kinit to look at your Master for the KDC
+        KRB5_CONFIG: "/dev/null"
+        KRB5_KDC: "{{ nameserver_ip }}"
 
     - name: Remote - Raw LDAP Check
       ansible.builtin.command: >
@@ -118,8 +120,9 @@
         -b "cn=users,cn=accounts,{{ 'dc=' + search_domain | replace('.', ',dc=') }}" 
         "uid=remoteuser"
       register: ldap_raw_check
-      delegate_to: "{{ item }}"
-      loop: "{{ groups['ipa'] }}"
+      # REMOVED the loop here so we get a single result for the summary. 
+      # We only need to check reachability to the nameserver_ip once.
+      ignore_errors: yes
 
     - name: Remote - Test Web UI Reachability
       uri:
@@ -140,7 +143,6 @@
         if command -v kdestroy >/dev/null 2>&1; then
           kdestroy -A
         fi
-      delegate_to: 192.168.100.11
       failed_when: false
       changed_when: false
 
@@ -148,19 +150,7 @@
 - name: "Verification Summary Results"
   debug:
     msg: 
-      - "DNS  Reachability : {{ 'ok' if dns_verify.rc == 0 else 'FAILED' }}"
-      - "LDAP Reachability : {{ 'ok' if ldap_raw_check.rc == 0 else 'FAILED' }}"
-      - "KRBR Auth Check  : {{ 'ok' if krb_raw_check.rc == 0 else 'FAILED' }}"
+      - "DNS  Reachability : {{ 'ok' if (dns_verify.rc | default(1)) == 0 else 'FAILED' }}"
+      - "LDAP Reachability : {{ 'ok' if (ldap_raw_check.rc | default(1)) == 0 else 'FAILED' }}"
+      - "KRBR Auth Check  : {{ 'ok' if (krb_raw_check.rc | default(1)) == 0 else 'FAILED' }}"
       - "WEB  UI Check    : {{ 'ok' if (web_check.status | default(-1)) == 200 else 'FAILED' }}"
-
-- name: "Verification - Cleanup Master Entries"
-  delegate_to: "{{ groups['ipa'][0] }}"
-  become: yes
-  block:
-    - name: Master - Remove test DNS
-      command: "ipa dnsrecord-del {{ search_domain }} remotecheck --a-rec=1.2.3.4"
-      failed_when: false
-
-    - name: Master - Remove test User
-      command: "ipa user-del remoteuser"
-      failed_when: false
