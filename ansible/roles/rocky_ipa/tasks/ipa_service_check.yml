@@ -112,11 +112,9 @@
     - name: Remote - Verify DNS resolution (with Propagation Wait) {{ next_host }}
       ansible.builtin.command: "nslookup remotecheck.{{ search_domain }} {{ nameserver_ip }}"
       register: dns_verify
-      # This is our wait-gate. It will retry if NXDOMAIN (rc 1) is returned.
       until: dns_verify.rc == 0
-      retries: 6
-      delay: 5
-      # We no longer ignore_errors. It will fail here if DNS never shows up.
+      retries: 3
+      delay: 2
 
     - name: Remote - Raw Kerberos Check {{ next_host }}
       shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
