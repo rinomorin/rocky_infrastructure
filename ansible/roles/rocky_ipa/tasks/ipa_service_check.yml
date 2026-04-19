@@ -132,7 +132,12 @@
       ignore_errors: yes
 
     - name: Remote - Clear Tickets
-      command: "kdestroy -A"
+      ansible.builtin.shell: |
+        if command -v kdestroy >/dev/null 2>&1; then
+          kdestroy -A
+        fi
+      delegate_to: 192.168.100.11
+      failed_when: false
       changed_when: false
 
 # SECTION 3: Final Results and Cleanup on Master
