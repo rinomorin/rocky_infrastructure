@@ -34,6 +34,13 @@
         nmcli connection up "{{ active_conn_name.stdout }}"
       when: ansible_host != ipa_master_ip
 
+    - name: "DNS Prep - clean resolve"
+      ansible.builtin.shell: |
+        sudo sed -i '/nameserver 172.16/d' /etc/resolv.conf && \
+        sudo sed -i '/nameserver 10.0.0/d' /etc/resolv.conf && \
+        cat /etc/resolv.conf
+      when: ansible_host != ipa_master_ip
+
     - name: "DNS Prep - Verify Resolution of Master FQDN"
       ansible.builtin.command: "nslookup {{ ipa_master_fqdn }}"
       register: resolution_verify
