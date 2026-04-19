@@ -67,6 +67,16 @@
         - "'already exists' not in dns_create.stderr"
         - "'no modifications' not in dns_create.stderr"
 
+    # --- THIS IS THE NEW TASK ---
+    - name: Master - Local DNS Gate (Wait for record to appear locally)
+      ansible.builtin.command: "host remotecheck.{{ search_domain }} 127.0.0.1"
+      register: local_dns_check
+      until: local_dns_check.rc == 0
+      retries: 12
+      delay: 5
+      # We wait up to 60 seconds for Bind to reload the zone internally.
+    # -----------------------------
+
     - name: Master - Create test User
       command: "ipa user-add remoteuser --first=Remote --last=Test --password"
       args:
