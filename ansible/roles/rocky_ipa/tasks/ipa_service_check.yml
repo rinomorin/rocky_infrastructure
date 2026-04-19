@@ -90,7 +90,7 @@
   delegate_to: "{{ next_host }}"
   become: yes
   block:
-    - name: Remote - DNS Setup with Backup
+    - name: Remote - DNS Setup with Backup {{ next_host }}
       ansible.builtin.copy:
         content: |
           search {{ search_domain }}
@@ -99,7 +99,7 @@
         backup: yes
       register: dns_backup_info
 
-    - name: Remote - Verify DNS resolution (with Propagation Wait)
+    - name: Remote - Verify DNS resolution (with Propagation Wait) {{ next_host }}
       ansible.builtin.command: "nslookup remotecheck.{{ search_domain }} {{ nameserver_ip }}"
       register: dns_verify
       # This is our wait-gate. It will retry if NXDOMAIN (rc 1) is returned.
@@ -108,21 +108,21 @@
       delay: 5
       # We no longer ignore_errors. It will fail here if DNS never shows up.
 
-    - name: Remote - Raw Kerberos Check
+    - name: Remote - Raw Kerberos Check {{ next_host }}
       shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
       register: krb_raw_check
       environment:
         KRB5_CONFIG: "/dev/null"
         KRB5_KDC: "{{ nameserver_ip }}"
 
-    - name: Remote - Raw LDAP Check
+    - name: Remote - Raw LDAP Check {{ next_host }}
       ansible.builtin.command: >
         ldapsearch -x -H ldap://{{ nameserver_ip }} 
         -b "cn=users,cn=accounts,{{ 'dc=' + search_domain | replace('.', ',dc=') }}" 
         "uid=remoteuser"
       register: ldap_raw_check
 
-    - name: Remote - Test Web UI Reachability
+    - name: Remote - Test Web UI Reachability {{ next_host }}
       uri:
         url: "https://{{ ipa_master_fqdn }}/ipa/ui/"
         validate_certs: no

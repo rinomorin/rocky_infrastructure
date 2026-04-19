@@ -316,21 +316,21 @@
                     "cidr": "10.0.0.0/24",
                     "devname": "enp2s0",
                     "ip": "10.0.0.20",
-                    "mac": "52:54:00:77:88:5b",
+                    "mac": "52:54:00:2c:64:08",
                     "name": "br-cluster"
                 },
                 "br-nat": {
                     "cidr": "172.16.0.0/24",
                     "devname": "enp1s0",
                     "ip": "DHCP",
-                    "mac": "52:54:00:6a:b8:b4",
+                    "mac": "52:54:00:bd:4d:bb",
                     "name": "br-nat"
                 },
                 "default": {
                     "cidr": "192.168.100.0/24",
                     "devname": "enp3s0",
                     "ip": "192.168.100.20",
-                    "mac": "52:54:00:dd:35:ec",
+                    "mac": "52:54:00:d5:52:68",
                     "name": "default"
                 }
             },
@@ -340,7 +340,7 @@
             "profile": "k8s",
             "provider_ip": "192.168.100.20",
             "provision_ip": "10.0.0.20",
-            "reachable_ip": "172.16.0.182"
+            "reachable_ip": "172.16.0.149"
         },
         "ipa01": {
             "cidr": "192.168.100.0/24",
@@ -364,7 +364,7 @@
                     "cidr": "192.168.100.0/24",
                     "devname": "enp1s0",
                     "ip": "192.168.100.10",
-                    "mac": "52:54:00:b6:cb:ff",
+                    "mac": "52:54:00:92:3a:9d",
                     "name": "default"
                 }
             },
@@ -374,7 +374,7 @@
             "profile": "infra",
             "provider_ip": "192.168.100.10",
             "provision_ip": "none",
-            "reachable_ip": "192.168.100.179"
+            "reachable_ip": "192.168.100.218"
         },
         "ipa02": {
             "cidr": "192.168.100.0/24",
@@ -398,7 +398,7 @@
                     "cidr": "192.168.100.0/24",
                     "devname": "enp1s0",
                     "ip": "192.168.100.11",
-                    "mac": "52:54:00:7a:ef:d9",
+                    "mac": "52:54:00:69:a0:95",
                     "name": "default"
                 }
             },
@@ -408,7 +408,7 @@
             "profile": "infra",
             "provider_ip": "192.168.100.11",
             "provision_ip": "none",
-            "reachable_ip": "192.168.100.213"
+            "reachable_ip": "192.168.100.15"
         }
     }
 }
