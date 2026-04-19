@@ -1,0 +1,22 @@
+- name: Ensure FIPS mode matches Master
+  block:
+    - name: Check FIPS status
+      command: fips-mode-setup --check
+      register: fips_status
+      changed_when: false
+
+    - name: Enable FIPS if disabled
+      command: fips-mode-setup --enable
+      when: "'enabled' not in fips_status.stdout"
+      notify: "Reboot for FIPS"
+
+  rescue:
+    - name: Fail if fips-mode-setup is missing
+      fail:
+        msg: "The fips-mode-setup tool is missing. Is this a Rocky Linux system?"
+
+# # Add a handler to manage the reboot
+# handlers:
+#   - name: "Reboot for FIPS"
+#     reboot:
+#       msg: "Rebooting to enable FIPS mode for IPA compatibility"

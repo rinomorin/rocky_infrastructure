@@ -14,7 +14,7 @@
 
     - name: "Pre-Install - Stop NetworkManager from overwriting"
       # This prevents NM from stepping on our temporary resolv.conf during the 10-minute install
-      ansible.builtin.command: "nmcli device set {{ ansible_default_ipv4.interface }} managed no"
+      ansible.builtin.command: "nmcli device set {{ ansible_facts['default_ipv4']['interface'] }} managed no"
       ignore_errors: yes
 
 - name: Enforce Master DNS Resolution
@@ -96,7 +96,7 @@
 - name: Replica Health Verification
   block:
     - name: Acquire Kerberos ticket for host
-      command: kinit -kt /etc/krb5.keytab "host/{{ ansible_fqdn }}@{{ ipa_domain | upper }}"
+      command: kinit -kt /etc/krb5.keytab "host/{{ ansible_facts['fqdn'] }}@{{ ipa_domain | upper }}"
       changed_when: false
 
     - name: Verify Replication Topology

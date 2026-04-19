@@ -2,7 +2,7 @@
 - name: Audit VM disk and backing store metadata
   shell: |
     for vm in $(virsh list --name --all); do
-        xml=$(virsh dumpxml "$vm")
+        xml=$(virsh dumpxml a "$vm")
         disk_path=$(echo "$xml" | xmllint --xpath "string(//disk/source/@file)" - 2>/dev/null)
         back_path=$(echo "$xml" | xmllint --xpath "string(//disk/backingStore/source/@file)" - 2>/dev/null)
         disk_file=$(basename "$disk_path")
