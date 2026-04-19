@@ -99,8 +99,18 @@
       register: dns_backup_info
 
     - name: Remote - Verify DNS resolution
-      command: "host remotecheck.{{ search_domain }}"
+      ansible.builtin.command: "host remotecheck.{{ search_domain }} {{ ipa_master_ip }}"
       register: dns_verify
+      # On the helper, we know this might be flaky during bootstrap
+      ignore_errors: yes
+
+    - name: Remote - Raw Kerberos Check
+      shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
+      environment:
+        KRB5_CONFIG: "/dev/null" 
+        KRB5_KDC: "{{ nameserver_ip }}"
+      register: krb_raw_check
+      ignore_errors: yes
 
     - name: Remote - Raw LDAP Check
       ansible.builtin.command: >
@@ -110,16 +120,6 @@
       register: ldap_raw_check
       delegate_to: "{{ item }}"
       loop: "{{ groups['ipa'] }}"
-      # We might want to ignore errors if the user doesn't exist yet
-      # ignore_errors: yes
-
-    - name: Remote - Raw Kerberos Check
-      shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
-      environment:
-        KRB5_CONFIG: "/dev/null" 
-        KRB5_KDC: "{{ nameserver_ip }}"
-      register: krb_raw_check
-      ignore_errors: yes
 
     - name: Remote - Test Web UI Reachability
       uri:
