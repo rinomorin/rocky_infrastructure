@@ -100,7 +100,7 @@
       register: dns_backup_info
 
     - name: Remote - Verify DNS resolution (with Propagation Wait)
-      ansible.builtin.command: "host remotecheck.{{ search_domain }} {{ ipa_master_ip }}"
+      ansible.builtin.command: "nslookup remotecheck.{{ search_domain }} {{ nameserver_ip }}"
       register: dns_verify
       # This is our wait-gate. It will retry if NXDOMAIN (rc 1) is returned.
       until: dns_verify.rc == 0
