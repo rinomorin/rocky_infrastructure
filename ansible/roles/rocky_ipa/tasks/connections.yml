@@ -48,6 +48,7 @@
     name: 
       - bind-utils
       - krb5-workstation
+      - openldap-clients
       - nc
     state: present
   become: true
