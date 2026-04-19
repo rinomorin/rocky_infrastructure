@@ -115,7 +115,7 @@
     - name: Remote - Raw LDAP Check
       ansible.builtin.command: >
         ldapsearch -x -H ldap://{{ nameserver_ip }} 
-        -b "cn=users,cn=accounts,{{ 'dc=' + ipa_domain | replace('.', ',dc=') }}" 
+        -b "cn=users,cn=accounts,{{ 'dc=' + search_domain | replace('.', ',dc=') }}" 
         "uid=remoteuser"
       register: ldap_raw_check
       delegate_to: "{{ item }}"
