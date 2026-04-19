@@ -50,6 +50,37 @@
       changed_when: false
   when: ipa_stage == 'unconfigured'
 
+# SECTION 1: Setup on the Source (Primary)
+- name: "Verification - Setup DNS Infrastructure for Helper"
+  delegate_to: "{{ ipa_master_ip }}"
+  when: "{{ 'helpers' in groups }}"
+  become: yes
+  block:
+    - name: Master - Create the Cloud Sub-zone
+      ansible.builtin.command: "ipa dnszone-add cloud.{{ search_domain }}"
+      register: cloud_zone_create
+      failed_when: 
+        - cloud_zone_create.rc != 0 
+        - "'already exists' not in cloud_zone_create.stderr"
+
+    - name: Master - Create A record for Helper (in parent zone)
+      # This ensures the helper is resolvable immediately
+      ansible.builtin.command: >
+        ipa dnsrecord-add {{ search_domain }} helper.cloud --a-rec={{ helper_ip }}
+      register: helper_a_record
+      failed_when: 
+        - helper_a_record.rc != 0 
+        - "'already exists' not in helper_a_record.stderr"
+
+    - name: Master - Delegate Cloud zone to Helper (NS record)
+      # This tells the Master that Helper is the authority for the .cloud sub-zone
+      ansible.builtin.command: >
+        ipa dnsrecord-add {{ search_domain }} cloud --ns-rec=helper.cloud.{{ search_domain }}.
+      register: helper_ns_record
+      failed_when: 
+        - helper_ns_record.rc != 0 
+        - "'already exists' not in helper_ns_record.stderr"
+
 # --- STAGE 1: DNS INJECTION (ON MASTER) ---
 # We ensure the Master knows this replica exists before we start
 # --------------------------------
