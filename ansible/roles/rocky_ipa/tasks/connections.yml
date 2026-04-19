@@ -18,7 +18,7 @@
         if command -v host >/dev/null 2>&1; then
             if host -W 1 "$MASTER_IP" "$MASTER_IP" >/dev/null 2>&1; then
                 echo "Master DNS is resolving. No change needed."
-                exit 0
+                exit 03_verify_orchestrator 
             fi
         elif command -v nc >/dev/null 2>&1; then
             if nc -z -w 2 "$MASTER_IP" 53 >/dev/null 2>&1; then
@@ -45,7 +45,10 @@
 
 - name: Ensure DNS lookup utilities are installed on all IPA nodes
   ansible.builtin.package:
-    name: bind-utils
+    name: 
+      - bind-utils
+      - krb5-workstation
+      - nc
     state: present
   become: true
   delegate_to: "{{ item }}"
