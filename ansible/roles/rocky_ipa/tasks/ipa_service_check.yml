@@ -84,7 +84,8 @@
         - "'no modifications' not in pass_bypass.stderr"
       when: user_create.rc == 0 or 'already exists' in user_create.stderr
 
-# SECTION 2: Probe from the Helper (Targeting the Secondary)
+# SECTION 2: Probe from the next host (Targeting the Secondary)
+# SECTION 2: Probe from the Helper
 - name: "Verification - Query Secondary from Helper"
   delegate_to: "{{ next_host }}"
   become: yes
@@ -98,19 +99,19 @@
         backup: yes
       register: dns_backup_info
 
-    - name: Remote - Verify DNS resolution
-      # Force host to use the master IP directly to avoid the helper's local DNS mess
+    - name: Remote - Verify DNS resolution (with Propagation Wait)
       ansible.builtin.command: "host remotecheck.{{ search_domain }} {{ ipa_master_ip }}"
       register: dns_verify
-      ignore_errors: yes
+      # This is our wait-gate. It will retry if NXDOMAIN (rc 1) is returned.
+      until: dns_verify.rc == 0
+      retries: 6
+      delay: 5
+      # We no longer ignore_errors. It will fail here if DNS never shows up.
 
     - name: Remote - Raw Kerberos Check
-      # We use 'kinit' but pass the KDC IP via the environment or a temporary config
       shell: "echo '{{ ipa_test_user_password }}' | kinit remoteuser@{{ search_domain | upper }}"
       register: krb_raw_check
-      ignore_errors: yes
       environment:
-        # This forces kinit to look at your Master for the KDC
         KRB5_CONFIG: "/dev/null"
         KRB5_KDC: "{{ nameserver_ip }}"
 
@@ -120,9 +121,6 @@
         -b "cn=users,cn=accounts,{{ 'dc=' + search_domain | replace('.', ',dc=') }}" 
         "uid=remoteuser"
       register: ldap_raw_check
-      # REMOVED the loop here so we get a single result for the summary. 
-      # We only need to check reachability to the nameserver_ip once.
-      ignore_errors: yes
 
     - name: Remote - Test Web UI Reachability
       uri:
@@ -130,7 +128,20 @@
         validate_certs: no
         status_code: 200
       register: web_check
-      ignore_errors: yes
+
+  rescue:
+    - name: "Verification Summary Results (On Failure)"
+      debug:
+        msg: 
+          - "!!! VERIFICATION FAILED - DIAGNOSTICS BELOW !!!"
+          - "DNS  Reachability : {{ 'ok' if (dns_verify.rc | default(1)) == 0 else 'FAILED' }}"
+          - "LDAP Reachability : {{ 'ok' if (ldap_raw_check.rc | default(1)) == 0 else 'FAILED' }}"
+          - "KRBR Auth Check  : {{ 'ok' if (krb_raw_check.rc | default(1)) == 0 else 'FAILED' }}"
+          - "WEB  UI Check    : {{ 'ok' if (web_check.status | default(-1)) == 200 else 'FAILED' }}"
+
+    - name: "Force Failure after Summary"
+      fail:
+        msg: "The IPA Service Check failed. Review the summary above for the point of failure."
 
   always:
     - name: Remote - Restore Original DNS
@@ -145,12 +156,3 @@
         fi
       failed_when: false
       changed_when: false
-
-# SECTION 3: Final Results and Cleanup on Master
-- name: "Verification Summary Results"
-  debug:
-    msg: 
-      - "DNS  Reachability : {{ 'ok' if (dns_verify.rc | default(1)) == 0 else 'FAILED' }}"
-      - "LDAP Reachability : {{ 'ok' if (ldap_raw_check.rc | default(1)) == 0 else 'FAILED' }}"
-      - "KRBR Auth Check  : {{ 'ok' if (krb_raw_check.rc | default(1)) == 0 else 'FAILED' }}"
-      - "WEB  UI Check    : {{ 'ok' if (web_check.status | default(-1)) == 200 else 'FAILED' }}"
