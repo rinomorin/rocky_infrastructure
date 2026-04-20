@@ -1,7 +1,11 @@
 ---
 - name: Audit VM disk and backing store metadata
   shell: |
-    for vm in $(virsh list --name --all); do
+    VMS=$(virsh list --name --all)
+    if [ -z "$VMS" ]; then
+        exit 0
+    fi
+    for vm in $VMS; do
         xml=$(virsh dumpxml "$vm")
         disk_path=$(echo "$xml" | xmllint --xpath "string(//disk/source/@file)" - 2>/dev/null)
         back_path=$(echo "$xml" | xmllint --xpath "string(//disk/backingStore/source/@file)" - 2>/dev/null)
@@ -12,22 +16,25 @@
   register: disk_output
   changed_when: false
 
+- name: Exit early if no VMs are present
+  # This stops the current file and returns to main.yml if no VMs exist
+  ansible.builtin.meta: end_host
+  when: disk_output.stdout | trim == ""
+
 - name: Identify protected parent VMs
   set_fact:
     vm_map: "{{ vm_map | default({}) | combine({ item.split(',')[0].split('=')[1] : item.split(',')[2].split('=')[1] }) }}"
   loop: "{{ disk_output.stdout_lines }}"
+  # Only add to the map if there is a backing file (link_file != none)
   when: "item.split(',')[2].split('=')[1] != 'none'"
 
 - name: Set protection and deletion lists
   set_fact:
-    do_not_delete_list: "{{ vm_map.values() | map('regex_replace', '\\.qcow2$', '') | unique | list + [golden_image_name] }}"
+    # We use | default({}) here so that if vm_map was never created, the task won't crash
+    do_not_delete_list: "{{ (vm_map | default({})).values() | map('regex_replace', '\\.qcow2$', '') | unique | list + [golden_image_name] }}"
     
 - name: Determine safe to delete list
   set_fact:
-    # 1. Map: Get all VM names
-    # 2. Difference: Remove protected parents/golden image
-    # 3. Select: Only keep those starting with the prefix (e.g., gi-)
-    # 4. Reject: Remove any VM that contains the build_date (Protecting today's build)
     safe_to_delete: >-
       {{ disk_output.stdout_lines 
          | map('regex_replace', '^vm=([^,]+),.*', '\\1') 
