@@ -1,5 +1,5 @@
 - name: Get list of all VMs
-  ansible.builtin.command: virsh list --name --all
+  ansible.builtin.command: virsh list --name --all|grep "{{ golden_image_name }}"
   register: virsh_output
   changed_when: false
 
