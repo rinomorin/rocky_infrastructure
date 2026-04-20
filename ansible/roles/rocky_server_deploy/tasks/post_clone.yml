@@ -1,23 +1,31 @@
-- name: "Connectivity Check: SSH Probe and FIPS Enablement for {{ guest_member }}"
+- name: "FIPS Enforcement: SSH Probe for Helper Node {{ guest_member }}"
+  become: false
+  when: guest_member in groups['helpers']
   ansible.builtin.shell: |
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
     -o BatchMode=yes -o ConnectTimeout=5 -i .ssh/id_rsa \
     core@{{ guest_configs[guest_member].interfaces[pro_seg].ip }} "
-      if ! fips-mode-setup --check | grep -q 'is enabled'; then
-        sudo fips-mode-setup --enable && sudo reboot
+      if ! sudo -n fips-mode-setup --check | grep -q 'is enabled'; then
+        echo 'Enabling FIPS and rebooting...'
+        # Chaining with sudo -n ensures no password prompt is ever generated
+        sudo -n fips-mode-setup --enable && sudo -n reboot
       else
         echo 'FIPS already enabled'
       fi
     "
   register: live_check
-  # We expect the connection to drop on reboot, so we ignore failures
   failed_when: false
-  changed_when: "'FIPS already enabled' not in live_check.stdout"
+  changed_when: "'Enabling FIPS' in live_check.stdout"
 
-- name: Wait for {{ guest_member }} to return after FIPS reboot
-  ansible.builtin.wait_for:
-    host: "{{ guest_configs[guest_member].interfaces[pro_seg].ip }}"
-    port: 22
-    delay: 10
-    timeout: 300
-  delegate_to: localhost
+- name: Wait for SSH Key Auth to become available
+  ansible.builtin.command: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 
+    -o BatchMode=yes -o ConnectTimeout=5 -i .ssh/id_rsa
+    core@{{ guest_configs[guest_member].interfaces[pro_seg].ip }} "uptime"
+  register: ssh_recovery
+  until: ssh_recovery.rc == 0
+  retries: 30
+  delay: 10
+  when: 
+    - guest_member in groups['helpers']
+    - live_check.changed
