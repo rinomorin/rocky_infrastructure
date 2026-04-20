@@ -4,7 +4,6 @@ is_ipa_pkg: False
 ipa_type: "{{ hostvars[inventory_hostname]['ipa_cluster_role'] | default('client') }}"
 ipa_master_host: "{{ groups['ipa'][0] }}"
 ipa_helper_host: "{{ groups['helpers'][0] }}"
-ipa_helper_ip: "{{ hostvars[ipa_helper_host]['ansible_host'] }}"
 ipa_master: "{{ hostvars[ipa_master_host]['inventory_hostname'] }}"
 ipa_master_ip: "{{ hostvars[ipa_master_host]['ansible_host'] }}"
 ipa_primary_fqdn: "{{ hostvars[ipa_master_host]['hostname'] }}"

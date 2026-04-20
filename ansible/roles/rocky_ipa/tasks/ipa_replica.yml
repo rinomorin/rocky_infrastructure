@@ -53,7 +53,7 @@
 # SECTION 1: Setup on the Source (Primary)
 - name: "Verification - Setup DNS Infrastructure for Helper"
   delegate_to: "{{ ipa_master_ip }}"
-  when: "{{ 'helpers' in groups }}"
+  when: "'helpers' in groups"
   become: yes
   block:
     - name: Master - Create the Cloud Sub-zone
@@ -75,7 +75,7 @@
     - name: Master - Delegate Cloud zone to Helper (NS record)
       # This tells the Master that Helper is the authority for the .cloud sub-zone
       ansible.builtin.command: >
-        ipa dnsrecord-add {{ ipa_domain }} cloud --ns-rec=helper.cloud.{{ ipa_domain }}.
+        ipa dnsrecord-add {{ ipa_domain }} cloud --ns-rec=helper.cloud.{{ ipa_domain }}. --force
       register: helper_ns_record
       failed_when: 
         - helper_ns_record.rc != 0 
