@@ -364,7 +364,7 @@
                     "cidr": "192.168.100.0/24",
                     "devname": "enp1s0",
                     "ip": "192.168.100.10",
-                    "mac": "52:54:00:82:d8:50",
+                    "mac": "52:54:00:4a:95:58",
                     "name": "default"
                 }
             },
@@ -374,7 +374,7 @@
             "profile": "infra",
             "provider_ip": "192.168.100.10",
             "provision_ip": "none",
-            "reachable_ip": "192.168.100.24"
+            "reachable_ip": "192.168.100.31"
         },
         "ipa02": {
             "cidr": "192.168.100.0/24",
@@ -398,7 +398,7 @@
                     "cidr": "192.168.100.0/24",
                     "devname": "enp1s0",
                     "ip": "192.168.100.11",
-                    "mac": "52:54:00:34:fd:e4",
+                    "mac": "52:54:00:16:c0:a6",
                     "name": "default"
                 }
             },
@@ -408,7 +408,7 @@
             "profile": "infra",
             "provider_ip": "192.168.100.11",
             "provision_ip": "none",
-            "reachable_ip": "192.168.100.197"
+            "reachable_ip": "192.168.100.230"
         }
     }
 }

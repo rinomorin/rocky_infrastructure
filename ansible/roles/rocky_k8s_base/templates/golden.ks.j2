@@ -21,7 +21,7 @@ firewall --enabled --service=ssh
 selinux --enforcing
 services --enabled=sshd
 
-bootloader --location=mbr --boot-drive={{ install_disk }} --append="crashkernel=auto"
+bootloader --location=mbr --boot-drive={{ install_disk }} --append="crashkernel=auto fips=1"
 
 # ------------------------------------------------------------
 # Disk layout: EFI + /boot + XFS root
