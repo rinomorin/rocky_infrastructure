@@ -50,6 +50,58 @@
       changed_when: false
   when: ipa_stage == 'unconfigured'
 
+---
+# --- STAGE 0: NETWORK & RESOLUTION PREP ---
+- name: "Pre-Install - DNS Force"
+  become: yes
+  block:
+    - name: Remote - Force Master DNS with Backup
+      ansible.builtin.copy:
+        content: |
+          search {{ ipa_domain }}
+          nameserver {{ ipa_master_ip }}
+        dest: /etc/resolv.conf
+        backup: yes
+      register: dns_backup_info
+
+    - name: "Pre-Install - Stop NetworkManager from overwriting"
+      # This prevents NM from stepping on our temporary resolv.conf during the 10-minute install
+      ansible.builtin.command: "nmcli device set {{ ansible_facts['default_ipv4']['interface'] }} managed no"
+      ignore_errors: yes
+
+- name: Enforce Master DNS Resolution
+  become: yes
+  block:
+    - name: "DNS Prep - Identify Active Interface"
+      ansible.builtin.shell: "nmcli -t -f NAME connection show --active | head -n 1"
+      register: active_conn_name
+      changed_when: false
+
+    - name: "DNS Prep - Configure DNS to point to Master ({{ ipa_master_ip }})"
+      ansible.builtin.shell: |
+        nmcli connection modify "{{ active_conn_name.stdout }}" \
+        ipv4.dns "{{ ipa_master_ip }}" \
+        ipv4.dns-search "{{ ipa_domain }}" \
+        ipv4.ignore-auto-dns yes && \
+        nmcli connection up "{{ active_conn_name.stdout }}"
+      when: ansible_host != ipa_master_ip
+
+    - name: "DNS Prep - clean resolve"
+      ansible.builtin.shell: |
+        sudo sed -i '/nameserver 172.16/d' /etc/resolv.conf && \
+        sudo sed -i '/nameserver 10.0.0/d' /etc/resolv.conf && \
+        cat /etc/resolv.conf
+      when: ansible_host != ipa_master_ip
+
+    - name: "DNS Prep - Verify Resolution of Master FQDN"
+      ansible.builtin.command: "nslookup {{ ipa_master_fqdn }}"
+      register: resolution_verify
+      until: resolution_verify.rc == 0
+      retries: 5
+      delay: 5
+      changed_when: false
+  when: ipa_stage == 'unconfigured'
+
 # SECTION 1: Setup on the Source (Primary)
 - name: "Verification - Setup DNS Infrastructure for Helper"
   delegate_to: "{{ ipa_master_ip }}"
@@ -71,7 +123,7 @@
     - name: Master - Create the Cloud Sub-zone
       ansible.builtin.command: "ipa dnszone-add cloud.{{ ipa_domain }}"
       register: cloud_zone_create
-      failed_when: 
+      failed_when: ss
         - cloud_zone_create.rc != 0 
         - "'already exists' not in cloud_zone_create.stderr"
         - "'no modifications' not in helper_a_record.stderr" # <--- Add this line
@@ -96,6 +148,18 @@
         - "'already exists' not in helper_ns_record.stderr"
         - "'no modifications' not in helper_a_record.stderr" # <--- Add this line
 
+    # --- THIS IS THE NEW TASK ---
+    - name: replica - Local DNS Gate (Wait for record to appear locally)
+      delegate_to: "{{ ipa_master_ip }}"
+      ansible.builtin.command: "host helper.cloud.{{ ipa_domain }} 127.0.0.1"
+      register: local_dns_check
+      until: local_dns_check.rc == 0
+      retries: 12
+      delay: 5
+      # We wait up to 60 seconds for Bind to reload the zone internally.
+    # -----------------------------
+
+
 # --- STAGE 1: DNS INJECTION (ON MASTER) ---
 # We ensure the Master knows this replica exists before we start
 # --------------------------------
@@ -112,6 +176,18 @@
     - "'no modifications' not in dns_injection_out.stderr"
   no_log: true 
   when: ipa_stage == 'unconfigured'
+
+# --- THIS IS THE NEW TASK ---
+- name: replica - Local DNS Gate (Wait for record to appear locally)
+  delegate_to: "{{ ipa_master_ip }}"
+  ansible.builtin.command: "host {{ inventory_hostname_short }}.{{ ipa_domain }} 127.0.0.1"
+  register: local_dns_check
+  until: local_dns_check.rc == 0
+  retries: 12
+  delay: 5
+  # We wait up to 60 seconds for Bind to reload the zone internally.
+# -----------------------------
+
 
 # --- STAGE 2: INSTALLATION ---
 # --------------------------------
@@ -136,6 +212,83 @@
   when: ipa_stage == 'unconfigured'
   # no_log: true
 
+# --- STAGE 3: RECOVERY & HEALTH VERIFICATION ---
+# --------------------------------
+- name: Replica Health Verification
+  block:
+    - name: Acquire Kerberos ticket for host
+      command: kinit -kt /etc/krb5.keytab "host/{{ ansible_facts['fqdn'] }}@{{ ipa_domain | upper }}"
+      changed_when: false
+
+    - name: Verify Replication Topology
+      # Prove the replica is actually in the topology segment
+      ansible.builtin.command: "ipa topologysegment-find domain"
+      register: topo_check
+      failed_when: "inventory_hostname_short not in topo_check.stdout"
+      changed_when: false
+
+    - name: Test DNS Resolution (Local named-pkcs11)
+      ansible.builtin.shell: "dig +short @127.0.0.1 {{ hostvars[inventory_hostname].hostname }}"
+      register: dns_test
+      failed_when: dns_test.stdout == ""
+      changed_when: false
+
+    - name: Final SSSD Cache Flush
+      ansible.builtin.command: "sss_cache -E"
+      changed_when: false
+
+  when: ipa_stage in ['running', 'configured'] or (ipa_replica_out is defined and ipa_replica_out is not failed)
+
+# --- STAGE 1: DNS INJECTION (ON MASTER) ---
+# We ensure the Master knows this replica exists before we start
+# --------------------------------
+- name: "Ensure Master has A-record for Replica: {{ inventory_hostname_short }}"
+  become: true
+  ansible.builtin.shell: |
+    echo '{{ ipa_admin_password }}' | kinit admin && \
+    ipa dnsrecord-add {{ ipa_domain }} {{ inventory_hostname_short }} --a-rec={{ ansible_host }}
+  delegate_to: "{{ ipa_master_ip }}"
+  register: dns_injection_out
+  failed_when: 
+    - dns_injection_out.rc != 0 
+    - "'already exists' not in dns_injection_out.stderr"
+    - "'no modifications' not in dns_injection_out.stderr"
+  no_log: true 
+  when: ipa_stage == 'unconfigured'
+
+# --- THIS IS THE NEW TASK ---
+- name: replica - Local DNS Gate (Wait for record to appear locally)
+  delegate_to: "{{ ipa_master_ip }}"
+  ansible.builtin.command: "host {{ inventory_hostname_short }}.{{ ipa_domain }} 127.0.0.1"
+  register: local_dns_check
+  until: local_dns_check.rc == 0
+  retries: 12
+  delay: 5
+  # We wait up to 60 seconds for Bind to reload the zone internally.
+# -----------------------------
+
+# --- STAGE 2: INSTALLATION ---
+# --------------------------------
+- name: Configure IPA Secondary Replica (with CA & DNS)
+  become: yes
+  environment:
+    PKI_TIMEOUT: "900" # Replicas can take longer during LDAP sync
+  ansible.builtin.shell: |
+    umask 022 && ipa-replica-install \
+      --unattended \
+      --principal=admin \
+      --admin-password='{{ ipa_admin_password }}' \
+      --server={{ ipa_master_fqdn }} \
+      --domain={{ ipa_domain | lower }} \
+      --realm={{ ipa_domain | upper }} \
+      --hostname={{ ansible_facts['fqdn'] }} \
+      --setup-ca \
+      --setup-dns \
+      --no-forwarders \
+      --no-host-dns
+  register: ipa_replica_out
+  when: ipa_stage == 'unconfigured'
+  # no_log: true
 
 # --- STAGE 3: RECOVERY & HEALTH VERIFICATION ---
 # --------------------------------
