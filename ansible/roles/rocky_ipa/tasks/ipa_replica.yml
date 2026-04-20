@@ -62,6 +62,7 @@
       failed_when: 
         - cloud_zone_create.rc != 0 
         - "'already exists' not in cloud_zone_create.stderr"
+        - "'no modifications' not in helper_a_record.stderr" # <--- Add this line
 
     - name: Master - Create A record for Helper (in parent zone)
       # This ensures the helper is resolvable immediately
@@ -71,6 +72,7 @@
       failed_when: 
         - helper_a_record.rc != 0 
         - "'already exists' not in helper_a_record.stderr"
+        - "'no modifications' not in helper_a_record.stderr" # <--- Add this line
 
     - name: Master - Delegate Cloud zone to Helper (NS record)
       # This tells the Master that Helper is the authority for the .cloud sub-zone
@@ -80,6 +82,7 @@
       failed_when: 
         - helper_ns_record.rc != 0 
         - "'already exists' not in helper_ns_record.stderr"
+        - "'no modifications' not in helper_a_record.stderr" # <--- Add this line
 
 # --- STAGE 1: DNS INJECTION (ON MASTER) ---
 # We ensure the Master knows this replica exists before we start
