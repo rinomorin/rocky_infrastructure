@@ -155,8 +155,8 @@
         "gi-infra-10-20260420": {
             "build_date": "20260420",
             "login": {
-                "ssh_key_path": "~/.ssh/id_rsa.pub",
-                "user": "cloud_helper"
+                "ssh_key_path": "",
+                "user": "cloud-helper"
             },
             "name": "gi-infra-10-20260420",
             "os_variant": "10",
@@ -326,8 +326,8 @@
         "gi-k8s-9-20260420": {
             "build_date": "20260420",
             "login": {
-                "ssh_key_path": "~/.ssh/id_rsa.pub",
-                "user": "cloud_helper"
+                "ssh_key_path": "",
+                "user": "cloud-helper"
             },
             "name": "gi-k8s-9-20260420",
             "os_variant": "9",
@@ -354,21 +354,21 @@
                     "cidr": "10.0.0.0/24",
                     "devname": "enp2s0",
                     "ip": "10.0.0.20",
-                    "mac": "52:54:00:d6:74:cd",
+                    "mac": "52:54:00:6d:79:06",
                     "name": "br-cluster"
                 },
                 "br-nat": {
                     "cidr": "172.16.0.0/24",
                     "devname": "enp1s0",
                     "ip": "DHCP",
-                    "mac": "52:54:00:e6:04:1e",
+                    "mac": "52:54:00:ed:a3:f8",
                     "name": "br-nat"
                 },
                 "default": {
                     "cidr": "192.168.100.0/24",
                     "devname": "enp3s0",
                     "ip": "192.168.100.20",
-                    "mac": "52:54:00:69:ea:ed",
+                    "mac": "52:54:00:ab:2b:82",
                     "name": "default"
                 }
             },
@@ -378,7 +378,7 @@
             "profile": "k8s",
             "provider_ip": "192.168.100.20",
             "provision_ip": "10.0.0.20",
-            "reachable_ip": "172.16.0.104"
+            "reachable_ip": "172.16.0.147"
         },
         "ipa01": {
             "cidr": "192.168.100.0/24",
@@ -402,7 +402,7 @@
                     "cidr": "192.168.100.0/24",
                     "devname": "enp1s0",
                     "ip": "192.168.100.10",
-                    "mac": "52:54:00:1a:f8:09",
+                    "mac": "52:54:00:89:8a:e5",
                     "name": "default"
                 }
             },
@@ -412,7 +412,7 @@
             "profile": "infra",
             "provider_ip": "192.168.100.10",
             "provision_ip": "none",
-            "reachable_ip": "192.168.100.213"
+            "reachable_ip": "192.168.100.123"
         },
         "ipa02": {
             "cidr": "192.168.100.0/24",
@@ -436,7 +436,7 @@
                     "cidr": "192.168.100.0/24",
                     "devname": "enp1s0",
                     "ip": "192.168.100.11",
-                    "mac": "52:54:00:7c:6e:34",
+                    "mac": "52:54:00:d3:e4:07",
                     "name": "default"
                 }
             },
@@ -446,7 +446,7 @@
             "profile": "infra",
             "provider_ip": "192.168.100.11",
             "provision_ip": "none",
-            "reachable_ip": "192.168.100.64"
+            "reachable_ip": "192.168.100.80"
         }
     }
 }
