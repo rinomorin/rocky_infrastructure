@@ -50,8 +50,7 @@
       changed_when: false
   when: ipa_stage == 'unconfigured'
 
----
-# --- STAGE 0: NETWORK & RESOLUTION PREP ---
+# STAGE 0: NETWORK & RESOLUTION PREP 
 - name: "Pre-Install - DNS Force"
   become: yes
   block:
