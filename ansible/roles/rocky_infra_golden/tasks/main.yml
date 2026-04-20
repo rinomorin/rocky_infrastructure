@@ -1,5 +1,6 @@
 - name: Get list of specific infra VMs
-  ansible.builtin.shell: "virsh list --name --all | grep 'gi-infra-10-20260419' || true"
+  # We use the shell module so the pipe (|) works as expected
+  ansible.builtin.shell: "virsh list --name --all | grep 'gi-{{ build_profile }}' || true"
   register: infra_vm_check
   changed_when: false
 
