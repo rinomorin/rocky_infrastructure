@@ -8,7 +8,7 @@
   become: true
   import_tasks: pre-cleanup.yml
   run_once: true
-  when: virsh_output.stdout | trim != ""
+  when: infra_vm_check.stdout | trim != ""
 
 - name: Run basic connectivity commands
   ansible.builtin.shell: |
