@@ -53,7 +53,7 @@
 # SECTION 1: Setup on the Source (Primary)
 - name: "Verification - Setup DNS Infrastructure for Helper"
   delegate_to: "{{ ipa_master_ip }}"
-  when: "'helpers' in groups"
+  when: "'helpers' in group_names"
   become: yes
   block:
     - name: Master - Create the Cloud Sub-zone
@@ -115,7 +115,7 @@
       --server={{ ipa_master_fqdn }} \
       --domain={{ ipa_domain | lower }} \
       --realm={{ ipa_domain | upper }} \
-      --hostname={{ ansible_fqdn }} \
+      --hostname={{ ansible_facts['fqdn'] }} \
       --setup-ca \
       --setup-dns \
       --no-forwarders \
