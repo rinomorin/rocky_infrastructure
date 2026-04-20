@@ -128,7 +128,6 @@
   changed_when: 
     - start_res.rc == 0
 
-
 - name: "Discover Temporary DHCP IP for {{ guest_member }} on {{ target_network }}"
   become: true
   shell: |
