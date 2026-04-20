@@ -33,5 +33,4 @@
 # - name: Update Member network connectivity
 #   import_tasks: 03_Config_guest.yml
 - name: post initialise fips
-  delegate_to: 
   include_tasks: post_clone.yml
