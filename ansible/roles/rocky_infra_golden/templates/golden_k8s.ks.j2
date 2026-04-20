@@ -21,7 +21,7 @@ firewall --enabled --service=ssh
 selinux --enforcing
 services --enabled=sshd
 
-bootloader --location=mbr --boot-drive={{ install_disk }} --append="crashkernel=auto fips=1"
+bootloader --location=mbr --boot-drive={{ install_disk }} --append="crashkernel=auto"
 
 # ------------------------------------------------------------
 # Disk layout: EFI + /boot + XFS root
@@ -66,6 +66,9 @@ python3-pyyaml
 # ------------------------------------------------------------
 
 %post --log=/root/ks-post.log
+
+dnf install -y vim-enhanced --nobest
+
 # Inject Build Metadata for tracking upgrades
 echo "IMAGE_TYPE=golden-base" > /etc/golden-release
 echo "BUILD_TIMESTAMP={{ build_timestamp }}" >> /etc/golden-release
