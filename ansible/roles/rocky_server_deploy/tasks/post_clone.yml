@@ -1,6 +1,4 @@
 - name: "Connectivity Check: SSH Probe and FIPS Enablement for {{ guest_member }}"
-  become: false
-  delegate_to: localhost
   ansible.builtin.shell: |
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
     -o BatchMode=yes -o ConnectTimeout=5 -i .ssh/id_rsa \

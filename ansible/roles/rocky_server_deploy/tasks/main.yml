@@ -33,6 +33,7 @@
 # - name: Update Member network connectivity
 #   import_tasks: 03_Config_guest.yml
 - name: post initialise fips
+  become: false
   vars:
     pro_seg: "{{ net_provider }}"
   include_tasks: post_clone.yml
