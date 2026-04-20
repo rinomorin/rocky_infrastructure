@@ -1,6 +1,6 @@
-- name: Get list of all VMs
-  ansible.builtin.command: virsh list --name --all|grep "{{ golden_image_name }}"
-  register: virsh_output
+- name: Get list of specific infra VMs
+  ansible.builtin.shell: "virsh list --name --all | grep 'gi-infra-10-20260419' || true"
+  register: infra_vm_check
   changed_when: false
 
 - name: Run pre-cleanup.yml
