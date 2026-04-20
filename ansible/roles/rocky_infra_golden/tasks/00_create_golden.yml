@@ -78,9 +78,9 @@
 - name: Generate Kickstart from template for golden-base {{ golden_image_name }}
   template:
     src: "{{ build_template }}"
-    dest: "/home/{{ cloud_helper_user }}/{{ golden_image_name }}.ks"
-    owner: "{{ cloud_helper_user }}"
-    group: "{{ cloud_helper_user }}"
+    dest: "/home/{{ ansible_user }}/{{ golden_image_name }}.ks"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     mode: '0644'
     force: true
   vars:
@@ -103,7 +103,7 @@
       --name {{ golden_image_name }}
       --ram {{ tram_size }}
       --vcpus {{ tcpu_count }}
-      --initrd-inject="/home/{{ cloud_helper_user }}/{{ golden_image_name }}.ks"
+      --initrd-inject="/home/{{ ansible_user }}/{{ golden_image_name }}.ks"
       --extra-args "inst.ks=file:/{{ golden_image_name }}.ks inst.repo={{ iso_path }} console=ttyS0,115200n8 {{ 'fips=1' if build_profile == 'infra' else '' }}"
       --disk path=/var/lib/libvirt/images/{{ golden_image_name }}.qcow2,size={{ tdisk_size }},bus=sata
       --os-variant {{ tos_name }}{{ tos_variant.split('.')[0] }}
