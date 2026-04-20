@@ -1,0 +1,16 @@
+[Unit]
+Description=OverlayFS for /etc
+DefaultDependencies=no
+Before=local-fs.target
+After=initrd-root-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/mkdir -p /run/overlay/etc/{upper,work}
+ExecStart=/usr/bin/mount -t overlay overlay-etc \
+    -o lowerdir=/etc,upperdir=/run/overlay/etc/upper,workdir=/run/overlay/etc/work \
+    /etc
+
+[Install]
+WantedBy=local-fs.target

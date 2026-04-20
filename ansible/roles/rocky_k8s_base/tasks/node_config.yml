@@ -1,0 +1,76 @@
+- name: "Parse mapping for {{ vm_mapping }}"
+  set_fact:
+    this_vm_name: "{{ vm_mapping.split('=')[0] }}"
+    this_vm_ip: "{{ vm_mapping.split('=')[1] }}"
+
+- name: "Wait for SSH Login to {{ this_vm_name }}"
+  delegate_to: localhost
+  shell: |
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        -o ConnectTimeout=5  \
+        core@{{ this_vm_ip }} /bin/true
+  register: ssh_check
+  until: ssh_check.rc == 0
+  retries: 60
+  delay: 5
+
+- name: "Force Persistent Static Networking"
+  delegate_to: localhost
+  shell: |
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@{{ this_vm_ip }} << 'EOF'
+    # 1. Ensure profiles exist and are bound to the correct interfaces
+    # We use 'nmcli device connect' to ensure the profile is locked to the hardware
+    
+    {% if hostvars[this_vm_name]['provision_ip'] is defined %}
+    sudo nmcli con mod enp2s0 connection.interface-name enp2s0 ipv4.address {{ hostvars[this_vm_name]['provision_ip'] }}/24 ipv4.method manual connection.autoconnect yes
+    sudo nmcli con up enp2s0
+    {% endif %}
+
+    {% if hostvars[this_vm_name]['provider_ip'] is defined %}
+    sudo nmcli con mod enp3s0 connection.interface-name enp3s0 ipv4.address {{ hostvars[this_vm_name]['provider_ip'] }}/24 ipv4.method manual connection.autoconnect yes
+    sudo nmcli con up enp3s0
+    {% endif %}
+
+    # 2. Prevent Cloud-Init from interfering with network again
+    echo "network: {config: disabled}" | sudo tee /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    
+    # 3. Final kick to ensure settings are active
+    sudo nmcli device reapply enp2s0 || true
+    sudo nmcli device reapply enp3s0 || true
+    EOF
+  register: fix_ip_result
+  when: this_vm_name in groups['cluster_nodes']
+
+- name: "Final Verification of {{ this_vm_name }}"
+  delegate_to: localhost
+  shell: |
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@{{ this_vm_ip }} "ip -4 -br addr show"
+  register: final_ipa
+  
+- name: "Generate cluster hosts string"
+  set_fact:
+    cluster_hosts_string: |
+      {% for host in groups['cluster_nodes'] %}
+      {{ hostvars[host]['provision_ip'] }} {{ hostvars[host]['inventory_hostname_short'] }}.{{ cloud_zone }} {{ hostvars[host]['inventory_hostname_short'] }}
+      {% endfor %}
+  run_once: true
+
+- name: "Inject /etc/hosts entries via SSH to {{ this_vm_name }}"
+  delegate_to: localhost
+  shell: |
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR core@{{ this_vm_ip }} << 'EOF'
+    # Use a temporary file to construct the block
+    cat << 'HOSTSBLOCK' > /tmp/k8s_hosts
+    # BEGIN ANSIBLE MANAGED K8S CLUSTER NODES
+    {{ cluster_hosts_string }}
+    # END ANSIBLE MANAGED K8S CLUSTER NODES
+    HOSTSBLOCK
+
+    # Remove old block if it exists and append new one to avoid duplicates
+    sudo sed -i '/# BEGIN ANSIBLE MANAGED/,/# END ANSIBLE MANAGED/d' /etc/hosts
+    cat /tmp/k8s_hosts | sudo tee -a /etc/hosts > /dev/null
+    rm /tmp/k8s_hosts
+    EOF
+  # when: 
+  #   - this_vm_name == inventory_hostname
+  #   - this_vm_name in groups['cluster_nodes']

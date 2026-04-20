@@ -1,0 +1,55 @@
+#cloud-config
+hostname: {{ inventory_hostname }}
+manage_etc_hosts: true
+
+# --- Package installation -----------------------------------------------------
+packages:
+  - cri-o
+  - kubelet
+  - kubeadm
+  - kubectl
+
+# --- Kernel modules & sysctl --------------------------------------------------
+write_files:
+  - path: /etc/modules-load.d/k8s.conf
+    permissions: "0644"
+    content: |
+      br_netfilter
+      overlay
+
+  - path: /etc/sysctl.d/99-kubernetes-cri.conf
+    permissions: "0644"
+    content: |
+      net.bridge.bridge-nf-call-iptables = 1
+      net.ipv4.ip_forward = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+
+# --- kubeadm init configuration -----------------------------------------------
+  - path: /etc/kubernetes/kubeadm-init.yaml
+    permissions: "0644"
+    content: |
+      {{ kubeadm_init_yaml | indent(6) }}
+
+# --- Firstboot commands -------------------------------------------------------
+runcmd:
+  # Apply sysctl settings
+  - sysctl --system
+
+  # Enable CRI-O and kubelet
+  - systemctl enable crio --now
+  - systemctl enable kubelet
+
+  # Initialize the control plane
+  - kubeadm init --config=/etc/kubernetes/kubeadm-init.yaml
+
+  # Configure kubectl for root
+  - mkdir -p /root/.kube
+  - cp /etc/kubernetes/admin.conf /root/.kube/config
+  - chown root:root /root/.kube/config
+
+  # Optional: allow scheduling pods on controller (remove if you want taints)
+  # - kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+
+# --- Reboot after provisioning ------------------------------------------------
+power_state:
+  mode: reboot

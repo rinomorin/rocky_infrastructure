@@ -1,0 +1,66 @@
+---
+- name: Ensure Python requirements are met locally
+  run_once: true
+  become: false
+  delegate_to: localhost
+  pip:
+    requirements: "{{ role_path }}/requirements.txt"
+  # This ensures 'netaddr' is present in the current venv
+
+- name: Initialize existing_vms 
+  set_fact: 
+    existing_vms: false
+    vm_host: "golden-base"
+    golden_ip: "unknown"    
+
+- name: Build Rocky Linux base image
+  block:
+
+  - name: add dns
+    import_tasks: pre_register_dns_from_helper.yml
+    delegate_to: "{{ VM_HOST_IP }}"
+
+  - name: Build Rocky Linux base image
+    import_tasks: 00_create_golden.yml
+    delegate_to: "{{ VM_HOST_IP }}"
+  
+  - name: wait for power down
+    import_tasks: 01_wait_for_shutdown.yml
+    delegate_to: "{{ VM_HOST_IP }}"
+  
+
+  - name: config load balancers
+    import_tasks: 01b_lb_config.yml
+
+  - name: wait for power up
+    import_tasks: 02_wait_for_poweron.yml
+    delegate_to: "{{ VM_HOST_IP }}"
+
+  - name: finalize golden image
+    import_tasks: 03_final_golden_touch.yml
+    delegate_to: localhost
+  
+  when: 
+    - "'kvm' in group_names"
+  
+- name: render_ignition
+  import_tasks: 04_render_ignitions.yml
+  delegate_to: "{{ VM_HOST_IP }}"
+
+- name: Build Rocky Linux base image continued
+  block:
+  - name: clone golden image
+    import_tasks: 05_cloning_golden.yml
+    delegate_to: "{{ VM_HOST_IP }}"
+  when: 
+    - "'kvm' in group_names"
+
+- name: init cluster
+  import_tasks: 06_init_primary.yml
+
+- name: join cluster
+  import_tasks: 07_join_masters.yml
+
+- name: join cluster
+  import_tasks: 08_join_workers.yml
+

@@ -1,0 +1,16 @@
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: JoinConfiguration
+discovery:
+  bootstrapToken:
+    # Dynamically pulls the provision_ip of the first master node from inventory
+    apiServerEndpoint: "{{ hostvars[groups['control_nodes'][0]]['provision_ip'] }}:6443"
+    token: "{{ cluster_token }}"
+    unsafeSkipCAVerification: true
+    unsafeSkipCAVerification: true
+{% if inventory_hostname in groups['control_nodes'] %}
+controlPlane:
+  localAPIEndpoint:
+    # Pulls the node_ip (10.0.0.x) defined for each specific host
+    advertiseAddress: "{{ node_ip }}"
+    bindPort: 6443
+{% endif %}

@@ -1,0 +1,62 @@
+---
+- name: Start cloned VMs
+  delegate_to: "{{ VM_HOST_IP }}"
+  community.libvirt.virt:
+    name: "{{ vm_host }}"
+    state: running
+  
+# 1. Discover the IP directly from the Hypervisor for the Golden VM
+- name: "3.1.2 - Discover Maintenance IP from br-nat"
+  delegate_to: "{{ VM_HOST_IP }}"
+  become: true
+  shell: |
+    # Get the MAC assigned to the NAT bridge for the golden host
+    M_MAC=$(virsh domiflist {{ vm_host }} | grep 'br-nat' | awk '{print $5}')
+    
+    # Wait for the DHCP lease to appear
+    while ! virsh net-dhcp-leases br-nat | grep -q "$M_MAC"; do sleep 2; done
+    
+    # Return just the IP
+    virsh net-dhcp-leases br-nat | grep "$M_MAC" | awk '{print $5}' | cut -d/ -f1
+  register: maintenance_ip_raw
+  # Ensure we retry if the shell script doesn't return exactly what we want
+  until: maintenance_ip_raw.stdout is search('[0-9.]+')
+  retries: 30
+  delay: 5
+
+# 2. Use that discovered IP to scrub the VM
+- name: "3.1.3 - Wipe NIC Artifacts and Hardware Affinity"
+  delegate_to: localhost
+  become: false
+  vars:
+    m_ip: "{{ maintenance_ip_raw.stdout | trim }}"
+  shell: |
+    # 1. Delete all NetworkManager connection profiles (Wipes old MACs/IPs)
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@{{ m_ip }} "sudo find /etc/NetworkManager/system-connections/ -type f -delete"
+    
+    # 2. Clear out persistent net rules to prevent interface naming conflicts
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@{{ m_ip }} "sudo rm -f /etc/udev/rules.d/70-persistent-net.rules"
+    
+    # 3. Clear machine-id so clones generate unique D-Bus/DHCP IDs on boot
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@{{ m_ip }} "sudo truncate -s 0 /etc/machine-id"
+    
+    # 4. Manual Log and Temp Clean (Alternative to cloud-init clean)
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@{{ m_ip }} "sudo rm -rf /var/log/* /tmp/* /var/tmp/*"
+  register: scrub_output
+
+# 3. Shut down for cloning
+- name: "3.1.4 - Final Shutdown for Cloning"
+  delegate_to: "{{ VM_HOST_IP }}"
+  become: true
+  shell: |
+    virsh destroy {{ vm_host }} || true
+    while [ "$(virsh domstate {{ vm_host }})" != "shut off" ]; do sleep 2; done
+  changed_when: true
+
+- name: Sysprep the golden (On Hypervisor)
+  delegate_to: "{{ VM_HOST_IP }}"
+  become: true
+  shell: |
+    # We run this on the KVM host while the VM is OFF
+    virt-sysprep -d {{ vm_host }} \
+      --operations machine-id,net-hostname,net-hwaddr,ssh-hostkeys,customize

@@ -1,0 +1,86 @@
+- name: Register DNS Records via Localhost
+  run_once: true
+  delegate_to: localhost
+  become: no
+  block:
+    - name: Authenticate with FreeIPA
+      # Use single quotes around the variable to protect special characters
+      shell: "echo '{{ ipa_admin_password }}' | kinit admin"
+      no_log: true
+      delegate_to: localhost
+      run_once: true
+
+    - name: Ensure DNS Forward and Reverse Zones exist
+      command: "ipa dnszone-add {{ item }} --name-server={{ ipa_master_fqdn }}."
+      loop: 
+        - "{{ c_zone }}"
+        - "{{ p_zone }}"
+        - "{{ rev_cloud }}"
+        - "{{ rev_prov }}"
+      register: zone_create
+      failed_when: zone_create.rc != 0 and 'already exists' not in zone_create.stderr
+      changed_when: "'Added zone' in zone_create.stdout"
+
+    - name: Register Cloud Network Records (192.168.100.x)
+      shell: |
+        ipa dnsrecord-add {{ c_zone }} {{ item }} --a-rec={{ hostvars[item].provider_ip }}
+        ipa dnsrecord-add {{ rev_cloud }} {{ hostvars[item].provider_ip.split('.')[-1] }} --ptr-rec={{ item }}.{{ c_zone }}.
+      loop: "{{ groups['all'] }}"
+      when: 
+        - hostvars[item].provider_ip is defined
+        - "'kvm' not in item"
+      failed_when: false
+      register: cloud_reg
+      changed_when: "'Added record' in cloud_reg.stdout"
+
+    - name: Register Provisioning Network Records (10.0.0.x)
+      shell: |
+        ipa dnsrecord-add {{ p_zone }} {{ item }} --a-rec={{ hostvars[item].provision_ip }}
+        ipa dnsrecord-add {{ rev_prov }} {{ hostvars[item].provision_ip.split('.')[-1] }} --ptr-rec={{ item }}.{{ p_zone }}.
+      loop: "{{ groups['all'] }}"
+      when: hostvars[item].provision_ip is defined
+      failed_when: false
+      register: prov_reg
+      changed_when: "'Added record' in prov_reg.stdout"
+
+# 2. Register the Load Balancer VIP in FreeIPA DNS
+- name: Register K8s Infrastructure in FreeIPA
+  delegate_to: localhost
+  run_once: true
+  block:
+    - name: Authenticate with FreeIPA
+      shell: "echo '{{ ipa_admin_password }}' | kinit admin"
+      no_log: true
+
+    - name: Add Forward A Record for VIP (.30)
+      command: >
+        ipa dnsrecord-add {{ c_zone }} k8s-api 
+        --a-rec={{ k8s_api_vip }}
+      register: dns_vip
+      failed_when: 
+        - dns_vip.rc != 0 
+        - "'already exists' not in dns_vip.stderr"
+        - "'no modifications' not in dns_vip.stderr"
+
+    - name: Add Reverse PTR Record for VIP (.30)
+      # CHANGED: 'rev_cloud_zone' to 'rev_cloud' to match your zone creation block
+      command: >
+        ipa dnsrecord-add {{ rev_cloud }} {{ k8s_api_vip.split('.')[-1] }} 
+        --ptr-rec=k8s-api.{{ c_zone }}.
+      register: ptr_vip
+      failed_when: 
+        - ptr_vip.rc != 0 
+        - "'already exists' not in ptr_vip.stderr"
+        - "'no modifications' not in ptr_vip.stderr"
+
+    - name: Add Forward & Reverse for individual LB nodes
+      shell: |
+        ipa dnsrecord-add {{ c_zone }} {{ item }} --a-rec={{ hostvars[item].ansible_host }}
+        ipa dnsrecord-add {{ rev_cloud }} {{ hostvars[item].ansible_host.split('.')[-1] }} --ptr-rec={{ item.split('.')[0] }}.{{ c_zone }}.
+      loop: "{{ groups['hahost'] }}"
+      register: dns_nodes
+      # This logic now ignores the "no modifications" error and the "already exists" error
+      failed_when: 
+        - dns_nodes.rc != 0 
+        - "'already exists' not in dns_nodes.stderr"
+        - "'no modifications' not in dns_nodes.stderr"

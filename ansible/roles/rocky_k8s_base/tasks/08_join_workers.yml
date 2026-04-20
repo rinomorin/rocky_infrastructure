@@ -1,0 +1,7 @@
+# - name: "Join Worker Nodes to Cluster"
+#   delegate_to: localhost
+#   when: inventory_hostname in groups['worker_nodes']
+#   shell: |
+#     ssh -o StrictHostKeyChecking=no -o UserKnowtrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+#     core@{{ provision_ip }} "sudo {{ hostvars['localhost']['wnHostsFile=/dev/null \
+#     core@{{ provision_ip }} "sudo {{ hostvars['localhost']['worker_join_cmd'] }}"

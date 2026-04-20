@@ -1,0 +1,218 @@
+---
+# Clone only the hosts defined in the 'hahost' group in inventory
+- name: Clone Load Balancer nodes from Golden Image
+  delegate_to: "{{ VM_HOST_IP }}"
+  command: >
+    sudo virt-clone --original golden-base 
+    --name {{ item }} 
+    --file /var/lib/libvirt/images/{{ item }}.qcow2
+  loop: "{{ groups['hahost'] }}"
+  register: lb_clones
+  # We ignore the error if the VM already exists, but fail on anything else
+  failed_when: 
+    - lb_clones.rc != 0 
+    - "'already exists' not in lb_clones.stderr"
+
+- name: Get Target MAC from Hypervisor for all LBs
+  delegate_to: "{{ VM_HOST_IP }}"
+  shell: "sudo virsh domiflist {{ item.split('.')[0] }} | grep 'default' | awk '{print $5}' | head -n1"
+  register: mac_discovery
+  loop: "{{ groups['hahost'] }}"
+
+- name: Map Discovery Results to Host Dictionary
+  set_fact:
+    lb_mac_map: "{{ lb_mac_map | default({}) | combine({ item.item: item.stdout }) }}"
+  loop: "{{ mac_discovery.results }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Start all cloned Load Balancer VMs
+  delegate_to: "{{ VM_HOST_IP }}"
+  community.libvirt.virt:
+    name: "{{ item.split('.')[0] }}"
+    state: running
+  loop: "{{ groups['hahost'] }}"
+  run_once: true
+
+# 2. Wait for leases (Already working in your logs)
+- name: Wait for DHCP leases on br-nat
+  delegate_to: "{{ VM_HOST_IP }}"
+  shell: |
+    VMS="{{ groups['hahost'] | map('regex_replace', '^(.*?)\\..*$', '\\1') | join(' ') }}"
+    while true; do
+      FOUND_COUNT=0
+      for vm in $VMS; do
+        MAC=$(sudo virsh domiflist $vm | grep 'br-nat' | awk '{print $5}')
+        if sudo virsh net-dhcp-leases br-nat | grep -q "$MAC"; then
+          ((FOUND_COUNT++))
+        fi
+      done
+      TOTAL=$(echo $VMS | wc -w)
+      [ "$FOUND_COUNT" -eq "$TOTAL" ] && break
+      sleep 5
+    done
+  run_once: true
+
+# 3. Capture IPs for ALL LBs into a single Fact
+- name: Capture Live DHCP IPs for all LBs
+  delegate_to: "{{ VM_HOST_IP }}"
+  shell: |
+    # Get MAC for the specific item
+    MAC=$(sudo virsh domiflist {{ item.split('.')[0] }} | grep 'br-nat' | awk '{print $5}')
+    # Get IP for that MAC
+    sudo virsh net-dhcp-leases br-nat | grep "$MAC" | awk '{print $5}' | cut -d/ -f1
+  register: discovered_ips
+  loop: "{{ groups['hahost'] }}"
+  run_once: true
+
+# 4. Map these IPs into a dictionary so we can use them
+- name: Create IP Map
+  set_fact:
+    lb_dhcp_map: "{{ lb_dhcp_map | default({}) | combine({ item.item: item.stdout }) }}"
+  loop: "{{ discovered_ips.results }}"
+  run_once: true
+
+# 5. Configure the Provider NIC via the Temp IP
+- name: Configure Provider IP via DHCP Management Link
+  delegate_to: localhost
+  run_once: true
+  loop: "{{ groups['hahost'] }}"
+  vars:
+    temp_mgmt_ip: "{{ lb_dhcp_map[item] }}"
+    target_mac: "{{ lb_mac_map[item] }}" # From your previous discovery
+    target_ip: "{{ hostvars[item].ansible_host }}"
+    target_gw: "{{ target_ip.split('.')[:3] | join('.') }}.1"
+    dns_servers: "{{ groups['dns'] | map('extract', hostvars, 'ansible_host') | join(',') }}"
+  shell: |
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@{{ temp_mgmt_ip }} "
+      # Identify device by MAC
+      IFACE=\$(ip -o link show | grep -i '{{ target_mac }}' | awk -F': ' '{print \$2}')
+      
+      # Setup Provider Connection
+      sudo nmcli con add type ethernet con-name provider ifname \$IFACE \
+        ipv4.addresses {{ target_ip }}/24 \
+        ipv4.gateway {{ target_gw }} \
+        ipv4.dns {{ dns_servers }} \
+        ipv4.method manual \
+        connection.autoconnect yes
+      
+      sudo nmcli con up provider
+    "
+
+- name: Remove Temporary and Unwanted NICs
+  delegate_to: "{{ VM_HOST_IP }}"
+  run_once: true
+  loop: "{{ groups['hahost'] }}"
+  vars:
+    short_name: "{{ item.split('.')[0] }}"
+    # Use the map we created earlier to know which one to KEEP
+    keep_mac: "{{ lb_mac_map[item] }}"
+  shell: |
+    # 1. Get all MAC addresses currently attached to this VM
+    # Exclude the header 'MAC' and any empty lines
+    CURRENT_MACS=$(sudo virsh domiflist {{ short_name }} | awk '{print $5}' | grep -vE 'MAC|^$')
+
+    for m in $CURRENT_MACS; do
+      if [ "$m" != "{{ keep_mac }}" ]; then
+        echo "Removing unwanted NIC with MAC: $m from {{ short_name }}"
+        # Detach live and update the XML config for persistence
+        sudo virsh detach-interface {{ short_name }} bridge --mac $m --live --config
+      else
+        echo "Keeping Provider NIC with MAC: $m"
+      fi
+    done
+  register: cleanup_result
+
+- name: Verify Final Network State
+  delegate_to: "{{ VM_HOST_IP }}"
+  run_once: true
+  loop: "{{ groups['hahost'] }}"
+  shell: "sudo virsh domiflist {{ item.split('.')[0] }}"
+  register: final_verify
+
+- name: Wait for Static Provider IP to be reachable
+  delegate_to: localhost
+  wait_for:
+    host: "{{ hostvars[item].ansible_host }}"
+    port: 22
+    state: started
+    timeout: 60
+  loop: "{{ groups['hahost'] }}"
+  run_once: true
+
+- name: Install HAProxy and Keepalived
+  vars:
+    ssh_opts: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10"
+    target_ip: "{{ hostvars[item].ansible_host }}"
+  delegate_to: localhost
+  run_once: true
+  loop: "{{ groups['hahost'] }}"
+  shell: |
+    ssh {{ ssh_opts }} core@{{ target_ip }} "sudo dnf install -y haproxy keepalived"
+  register: pkg_install
+  failed_when: pkg_install.rc != 0
+
+- name: Generate Load Balancer Configurations Locally
+  delegate_to: localhost
+  run_once: true
+  block:
+    - name: Create local temp directories for each LB
+      file:
+        path: "/tmp/k8s_lb_configs/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ groups['hahost'] }}"
+
+    - name: Template HAProxy Config
+      template:
+        src: haproxy.cfg.j2
+        dest: "/tmp/k8s_lb_configs/{{ item }}/haproxy.cfg"
+      loop: "{{ groups['hahost'] }}"
+
+    - name: Template Keepalived Config
+      template:
+        src: keepalived.conf.j2
+        dest: "/tmp/k8s_lb_configs/{{ item }}/keepalived.conf"
+      loop: "{{ groups['hahost'] }}"
+
+- name: Push and Enable LB Services (Fixed LF and SELinux)
+  delegate_to: localhost
+  run_once: true
+  loop: "{{ groups['hahost'] }}"
+  vars:
+    ssh_opts: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    target_ip: "{{ hostvars[item].ansible_host }}"
+  shell: |
+    # 1. Detect Interface
+    REAL_IFACE=$(ssh {{ ssh_opts }} core@{{ target_ip }} "ip -o addr show | grep '192.168.100.' | awk '{print \$2}' | head -n1")
+    
+    # 2. Local Cleanup
+    sed -i "s|interface .*|interface $REAL_IFACE|" /tmp/k8s_lb_configs/{{ item }}/keepalived.conf
+    sed -i 's|killall -0 haproxy|pgrep -x haproxy|' /tmp/k8s_lb_configs/{{ item }}/keepalived.conf
+    # Ensure newline (using printf is safer for YAML blocks)
+    printf '\n' >> /tmp/k8s_lb_configs/{{ item }}/haproxy.cfg
+
+    # 3. Transfer
+    scp {{ ssh_opts }} /tmp/k8s_lb_configs/{{ item }}/haproxy.cfg core@{{ target_ip }}:/tmp/haproxy.cfg
+    scp {{ ssh_opts }} /tmp/k8s_lb_configs/{{ item }}/keepalived.conf core@{{ target_ip }}:/tmp/keepalived.conf
+    
+    # 4. Remote Execution (Avoid nested double quotes)
+    ssh {{ ssh_opts }} core@{{ target_ip }} << 'EOF'
+      sudo mv /tmp/haproxy.cfg /etc/haproxy/haproxy.cfg
+      sudo mv /tmp/keepalived.conf /etc/keepalived/keepalived.conf
+      sudo chown root:root /etc/haproxy/haproxy.cfg /etc/keepalived/keepalived.conf
+      sudo chmod 644 /etc/haproxy/haproxy.cfg /etc/keepalived/keepalived.conf
+      sudo restorecon -Rv /etc/haproxy /etc/keepalived
+      sudo sysctl -w net.ipv4.ip_nonlocal_bind=1
+      sudo setsebool -P haproxy_connect_any 1
+      sudo systemctl stop haproxy keepalived
+      
+      if ! sudo haproxy -c -f /etc/haproxy/haproxy.cfg; then
+          echo "HAProxy config invalid"
+          exit 1
+      fi
+
+      sudo systemctl enable --now keepalived
+      sleep 2
+      sudo systemctl enable --now haproxy
+    EOF

@@ -1,0 +1,48 @@
+# ---
+# # - name: Pre-join Cleanup (Firewall & Swap)
+# #   shell: |
+# #     swapoff -a
+# #     systemctl disable --now firewalld
+# #     systemctl enable --now crio
+# #   ignore_errors: true
+
+# - name: Check if already joined
+#   stat:
+#     path: /etc/kubernetes/kubelet.conf
+#   register: kube_joined
+
+# - name: Join Secondary Control Plane Nodes
+#   command: >
+#     kubeadm join 10.0.0.31:6443 
+#     --token 61dpte.tid67saz4vx7n5s3
+#     --discovery-token-ca-cert-hash sha256:f7bcb65d37dbc87f65d5544ba3c354279e0c52e2b7f45fa101d739f48fe654da
+#     --control-plane 
+#     --certificate-key dc02737c33067ef0f1cd96a47e6e6c4197242aa96c1d43c15aebbbbf326ce4d5
+#     --ignore-preflight-errors=Swap,SystemVerification 
+#   when: 
+#     - not kube_joined.stat.exists
+#     - "'masters' in group_names"
+#     - inventory_hostname != 'msrlv9mast01'
+
+# - name: Join Worker Nodes
+#   command: >
+#     kubeadm join 10.0.0.31:6443 
+#     --token 61dpte.tid67saz4vx7n5s3
+#     --discovery-token-ca-cert-hash sha256:f7bcb65d37dbc87f65d5544ba3c354279e0c52e2b7f45fa101d739f48fe654da
+#     --ignore-preflight-errors=Swap,SystemVerification
+#   when: 
+#     - not kube_joined.stat.exists
+#     - "'workers' in group_names"
+
+# - name: Setup .kube directory for root
+#   file:
+#     path: /root/.kube
+#     state: directory
+#     mode: '0700'
+
+# - name: Copy admin.conf to root (Masters only)
+#   copy:
+#     src: /etc/kubernetes/admin.conf
+#     dest: /root/.kube/config
+#     remote_src: yes
+#   when: "'masters' in group_names"
