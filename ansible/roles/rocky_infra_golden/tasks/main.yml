@@ -1,7 +1,13 @@
+- name: Get list of all VMs
+  ansible.builtin.command: virsh list --name --all
+  register: virsh_output
+  changed_when: false
+
 - name: Run pre-cleanup.yml
   become: true
   import_tasks: pre-cleanup.yml
   run_once: true
+  when: virsh_output.stdout | trim != ""
 
 - name: Run basic connectivity commands
   ansible.builtin.shell: |
