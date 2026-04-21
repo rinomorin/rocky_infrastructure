@@ -126,6 +126,7 @@
       failed_when: 
         - helper_a_record.rc != 0 
         - "'already exists' not in helper_a_record.stderr"
+        - "'no modifications' not in helper_a_record.stderr" # Added this line
 
     - name: Master - Delegate Cloud zone to Helper (NS record)
       ansible.builtin.command: >
