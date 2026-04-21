@@ -149,3 +149,4 @@ The initial playbooks act as both a builder and a security auditor:
 ansible-execute: A wrapper script that passes consistent variables to our playbooks.
 
 state/deployment_report.json: Our central database for tracking active VMs and safe-to-delete lists.
+
