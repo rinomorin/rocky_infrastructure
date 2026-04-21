@@ -102,52 +102,38 @@
   when: ipa_stage == 'unconfigured'
 
 # SECTION 1: Setup on the Source (Primary)
-- name: "Verification - Setup DNS Infrastructure for Helper"
+- name: "Verification - Bootstrap DNS for Helper Registration"
   delegate_to: "{{ ipa_master_ip }}"
-  # Only run this if the current host being processed is in the 'helpers' group
   when: "'helpers' in group_names"
   become: yes
   block:
     - name: login to ipa
       ansible.builtin.command: "echo '{{ ipa_admin_password }}' | kinit admin"
 
-    - name: Master - Create the Cloud Sub-zone
-      ansible.builtin.command: "ipa dnszone-add cloud.{{ ipa_domain }}"
-      register: cloud_zone_create
-      failed_when:
-        - cloud_zone_create.rc != 0 
-        - "'already exists' not in cloud_zone_create.stderr"
-        - "'no modifications' not in helper_a_record.stderr" # <--- Add this line
-
-    - name: Master - Create A record for Helper (INSIDE the child zone)
+    - name: Master - Create Temporary A record in Parent Zone
+      # We put this in the parent zone so the node is resolvable for the IPA join
       ansible.builtin.command: >
-        ipa dnsrecord-add cloud.{{ ipa_domain }} helper --a-rec={{ ipa_helper_ip }}
-      register: helper_a_record
+        ipa dnsrecord-add {{ ipa_domain }} helper.cloud --a-rec={{ ipa_helper_ip }}
+      register: helper_bootstrap_a
       failed_when: 
-        - helper_a_record.rc != 0 
-        - "'already exists' not in helper_a_record.stderr"
-        - "'no modifications' not in helper_a_record.stderr" # Added this line
+        - helper_bootstrap_a.rc != 0 
+        - "'already exists' not in helper_bootstrap_a.stderr"
 
-    - name: Master - Delegate Cloud zone to Helper (NS record)
+    - name: Master - Create Reverse PTR record
       ansible.builtin.command: >
-        ipa dnsrecord-add {{ ipa_domain }} cloud --ns-rec=helper.cloud.{{ ipa_domain }}. --force
-      register: helper_ns_record
+        ipa dnsrecord-add 100.168.192.in-addr.arpa. {{ ipa_helper_ip.split('.')[-1] }} 
+        --ptr-rec=helper.cloud.{{ ipa_domain }}.
+      register: helper_ptr_record
       failed_when: 
-        - helper_ns_record.rc != 0 
-        - "'already exists' not in helper_ns_record.stderr"
-        - "'no modifications' not in helper_ns_record.stderr" # Fixed register name here
-    
-# --- THIS IS THE NEW TASK ---
-    - name: replica - Local DNS Gate (Wait for record to appear locally)
-      delegate_to: "{{ ipa_master_ip }}"
+        - helper_ptr_record.rc != 0 
+        - "'already exists' not in helper_ptr_record.stderr"
+
+    - name: Master - Verify Resolution
       ansible.builtin.command: "host helper.cloud.{{ ipa_domain }} 127.0.0.1"
-      register: local_dns_check
-      until: local_dns_check.rc == 0
-      retries: 12
-      delay: 5
-      # We wait up to 60 seconds for Bind to reload the zone internally.
-    # -----------------------------
-
+      register: bootstrap_dns_check
+      until: bootstrap_dns_check.rc == 0
+      retries: 5
+      delay: 2
 
 # --- STAGE 1: DNS INJECTION (ON MASTER) ---
 # We ensure the Master knows this replica exists before we start
