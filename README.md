@@ -94,3 +94,58 @@ The initial playbooks act as both a builder and a security auditor:
 * **Identity Enrollment**: Nodes are enrolled into the IPA realm to receive unique host principals and the CA trust chain.
 * **Network Lockdown**: `firewalld` is locked to strictly necessary ports, and PAM is reconfigured with **faillock** to prevent brute-force attacks.
 
+---
+## 🚀 Playbook Overview
+**setup_environment.yml:** The primary orchestrator. We use this to clear the environment, build the golden images, and prepare the helper nodes.
+
+**config_infra.yml:** The post-deployment configuration, focusing on identity management (IPA) and site-specific service hardening.
+
+## 🛠️ Role Breakdown
+### 1. rocky_infra_golden
+**pre-cleanup.yml:** Flushes "stuck" DHCP leases and destroys existing zombie VMs to ensure a clean workspace for the acme build.
+
+**00_create_golden.yml:** Provisions the "Golden Image" VM from the Rocky ISO using customized Kickstart templates.
+
+**01_wait_for_shutdown.yml:** Monitors installation progress and waits for the VM to power off (preventing the "fucking clone" hang issue).
+
+**02_secure_golden.yml:** Applies security hardening and ensures FIPS-compliant configurations are baked into the base image.
+
+**03_sysprep.yml:** Strips machine-specific IDs and logs, making the image generic and ready for cloning.
+
+**04_write_json.yml:** Records metadata for the new image in our local state tracking.
+
+### 2. rocky_server_deploy
+**01_determine_os_identity.yml:** Matches target host requirements to the correct golden image version.
+
+**pre_clone.yml:** Validates host storage and networking before starting the replication process.
+
+**02_clone_to_guest.yml:** Executes the cloning of the golden image to create active infrastructure guests.
+
+**set_guest_nic.yml:** Injects unique IP, MAC, and Hostname data into the cloned guest.
+
+**post_clone.yml:** Finalizes the guest state and ensures it is reachable via the network.
+
+**write_json.yml:** Updates the deployment report to reflect the new guest status.
+
+### 3. rocky_end
+**install_ipa.yml:** Orchestrates the installation of FreeIPA/IdM packages on the designated nodes.
+
+**ipa_master.yml / ipa_replica.yml:** Configures the primary identity master and sets up high-availability replicas.
+
+**ipa_service_check.yml:** Validates that Kerberos and LDAP services are fully operational.
+
+**connections.yml:** Manages the internal routing and firewall rules required for IPA communication.
+
+### 4. rocky_helper_prep
+**pre_prep.yml:** Initial validation of the helper environment and host-level dependency checks.
+
+**01_prep_nodes_ssh.yml:** Bootstraps SSH keys across the helper nodes to ensure seamless Ansible orchestration.
+
+**02_prep_helper_python.yml:** Finalizes the setup by ensuring the Python environment is ready for the acme infra modules.
+
+# 📂 Execution & State
+**env_build.sh:** The master shell script used to trigger the entire end-to-end workflow.
+
+ansible-execute: A wrapper script that passes consistent variables to our playbooks.
+
+state/deployment_report.json: Our central database for tracking active VMs and safe-to-delete lists.
