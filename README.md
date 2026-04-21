@@ -40,6 +40,10 @@ In the Cloud: Because we used production-level security in the lab, the transiti
 By eliminating "prototype-only" permissions and loose PAM configurations, we deny attackers the low-hanging fruit they rely on for initial access.
 
 ---
+Our Network goals
+<img width="2924" height="3700" alt="image" src="https://github.com/user-attachments/assets/b588d2ea-e477-4835-b3cd-2fbe89f6125a" />
+
+---
 
 ## 1. Phase 1: Infrastructure Preparation
 
