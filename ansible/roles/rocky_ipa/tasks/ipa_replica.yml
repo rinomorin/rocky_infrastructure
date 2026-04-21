@@ -108,21 +108,10 @@
   when: "'helpers' in group_names"
   become: yes
   block:
-
-    - name: Ensure we are not accidentally targeting ipa02
-      ansible.builtin.debug:
-        msg: "Processing node: {{ inventory_hostname }}"
-      when: "'ipa02' in inventory_hostname"
-
-    - name: Halt execution if ipa02 is incorrectly identified as a helper
-      ansible.builtin.fail: 
-         msg: "Critical Logic Error: {{ inventory_hostname }} is an IPA node, not a helper!"
-      when: "'ipa02' in inventory_hostname"
-
     - name: Master - Create the Cloud Sub-zone
       ansible.builtin.command: "ipa dnszone-add cloud.{{ ipa_domain }}"
       register: cloud_zone_create
-      failed_when: ss
+      failed_when:
         - cloud_zone_create.rc != 0 
         - "'already exists' not in cloud_zone_create.stderr"
         - "'no modifications' not in helper_a_record.stderr" # <--- Add this line
