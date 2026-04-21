@@ -108,6 +108,9 @@
   when: "'helpers' in group_names"
   become: yes
   block:
+    - name: login to ipa
+      ansible.builtin.command: "echo '{{ ipa_admin_password }}' | kinit admin"
+
     - name: Master - Create the Cloud Sub-zone
       ansible.builtin.command: "ipa dnszone-add cloud.{{ ipa_domain }}"
       register: cloud_zone_create
@@ -116,15 +119,13 @@
         - "'already exists' not in cloud_zone_create.stderr"
         - "'no modifications' not in helper_a_record.stderr" # <--- Add this line
 
-    - name: Master - Create A record for Helper (in parent zone)
-      # This ensures the helper is resolvable immediately
+    - name: Master - Create A record for Helper (INSIDE the child zone)
       ansible.builtin.command: >
-        ipa dnsrecord-add {{ ipa_domain }} helper.cloud --a-rec={{ ipa_helper_ip }}
+        ipa dnsrecord-add cloud.{{ ipa_domain }} helper --a-rec={{ ipa_helper_ip }}
       register: helper_a_record
       failed_when: 
         - helper_a_record.rc != 0 
         - "'already exists' not in helper_a_record.stderr"
-        - "'no modifications' not in helper_a_record.stderr" # <--- Add this line
 
     - name: Master - Delegate Cloud zone to Helper (NS record)
       # This tells the Master that Helper is the authority for the .cloud sub-zone
