@@ -8,6 +8,7 @@ deployment_report_path: "{{ playbook_dir }}/../state/deployment_report.json"
 
 # List of all guests that need the SSH key
 target_guests: "{{ (groups['ipa_servers'] | default([]) + groups['helpers'] | default([])) | unique }}"
+target_ip: ""
 
 # The specific helper node acting as the manager (taking the first one found)
 Orchestrator_host: "{{ groups['helpers'][0] }}"

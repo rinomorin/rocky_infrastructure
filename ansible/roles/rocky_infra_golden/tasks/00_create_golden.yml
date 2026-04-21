@@ -103,6 +103,7 @@
       --name {{ golden_image_name }}
       --ram {{ tram_size }}
       --vcpus {{ tcpu_count }}
+      --metadata description="build_date={{ build_timestamp }},profile={{ build_profile }}"
       --initrd-inject="/home/{{ ansible_user }}/{{ golden_image_name }}.ks"
       --extra-args "inst.ks=file:/{{ golden_image_name }}.ks inst.repo={{ iso_path }} console=ttyS0,115200n8 {{ 'fips=1' if build_profile == 'infra' else '' }}"
       --disk path=/var/lib/libvirt/images/{{ golden_image_name }}.qcow2,size={{ tdisk_size }},bus=sata

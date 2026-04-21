@@ -1,5 +1,6 @@
 ---
 - name: "Discover IP for {{ guest_member }}"
+  become: true
   shell: |
     virsh domifaddr {{ guest_member }} --source agent 2>/dev/null | \
     grep -Evi "lo|ipv6|Name|---" | \
@@ -11,13 +12,19 @@
   set_fact:
     target_ip: "{{ live_guest_ip_out.stdout }}"
 
-- name: Generate and capture Helper Public Key
+- name: Generate and capture Helper Public Key on {{ target_ip }}
   shell: >
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa 
     {{ Orchestrator_user }}@{{ helper_ip }}
     "if [ ! -f ~/.ssh/id_rsa ]; then ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N '' ; fi; cat ~/.ssh/id_rsa.pub"
   register: helper_pub_key_raw
   changed_when: false
+
+# - name: Set key as a fact
+#   delegate_to: localhost
+#   become: false
+#   set_fact:
+#     my_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 
 - name: Clean Public Key Fact
   set_fact:
@@ -34,6 +41,7 @@
     msg: |
       "Orchestrator_user {{ Orchestrator_user }}"
       "target_ip {{target_ip}}"
+
 - name: "Distribute Key to {{ guest_member }}"
   shell: >
     ssh -o StrictHostKeyChecking=no -i .ssh/id_rsa {{ Orchestrator_user }}@{{ target_ip }}

@@ -72,6 +72,7 @@
           --name {{ guest_member }} \
           --ram {{ tram_size | default(4096) }} \
           --vcpus {{ tcpu_count | default(2) }} \
+          --metadata description="build_date={{ build_timestamp }},profile={{ build_profile }}" \
           --disk path=/var/lib/libvirt/images/{{ guest_member }}.qcow2,bus=sata,size={{ tdisk_size }} \
           --import \
           --os-variant {{ 'rocky9' if (guest_configs[guest_member].os | default('9')) == '9' else 'rocky10' }} \

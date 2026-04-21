@@ -1,11 +1,15 @@
 ---
 # tasks/main.yml
-# - name: Load existing deployment data
-#   include_vars:
-#     file: "{{ deployment_report_path }}"
-#     name: guest_configs
+- name: Load existing deployment data
+  include_vars:
+    file: "{{ deployment_report_path }}"
+    name: guest_configs
+
+# - name: Gather local info  
+#   include_tasks: pre_prep.yml
 
 - name: Discover Orchestrator IP
+  become: yes
   shell: |
     virsh domifaddr {{ Orchestrator_host }} --source agent 2>/dev/null | \
     grep -Evi "lo|ipv6|Name|---" | \
@@ -22,9 +26,9 @@
   loop: "{{ target_guests }}"
   loop_control:
         loop_var: guest_member
+
 - name: Build Python Environment
   import_tasks: 02_prep_helper_python.yml
-
 
 # - name: Verify Orchestrator
 #   import_tasks: 03_verify_orchestrator.yml
