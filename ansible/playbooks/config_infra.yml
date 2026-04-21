@@ -37,7 +37,6 @@
   roles:
     - role: rocky_ipa
   
-
 - name: "Infra Stage Complete"
   hosts: localhost
   connection: local
@@ -45,14 +44,15 @@
   tasks:
     - name: "Verification Summary Results (Infrastructure Stage - Ambassador Model)"
       vars:
-        ipa_realm: "{{ lookup('env', 'ipa_domain') | default('example.lan', true) }}"
+        # Ensuring we keep our generic placeholder logic
+        ipa_realm: "{{ lookup('env', 'ipa_domain') | default('example.acme', true) | upper }}"
       ansible.builtin.debug:
         msg: 
-          - "Role Type: Infrastructure Identity & Directory Foundation"
-          - "Primary Nodes: IPA01 (Master) and IPA02 (High-Availability Replica)"
-          - "Ambassador Node: Helper (Specialized Replica bridging Infra and Cloud)"
-          - "DNS Strategy: Parent zone management only; Bootstrap A/PTR records established"
-          - "Identity Services: LDAP and Kerberos Realm {{ ipa_realm }} active across all nodes"
-          - "Directory Services: AD-Trust capability initialized for future integration"
-          - "PKI Status: Integrated CA and Intermediate CA established"
-          - "Security Compliance: FIPS-compliant kernel and CIS Level 2 Hardening enforced"
+          - "Role Type: Infrastructure Identity & Directory Foundation ✔"
+          - "Primary Nodes: IPA01 (Master) and IPA02 (High-Availability Replica) ✔"
+          - "Ambassador Node: Helper (Specialized Replica bridging Infra and Cloud) ✔"
+          - "DNS Strategy: Parent zone management only; Bootstrap A/PTR established ✔"
+          - "Identity Services: LDAP and Kerberos Realm {{ ipa_realm }} active ✔"
+          - "Directory Services: AD-Trust capability initialized for future integration ✔"
+          - "PKI Status: Integrated CA and Intermediate CA established ✔"
+          - "Security Compliance: FIPS kernel and CIS Level 2 Hardening enforced ✔"

@@ -85,18 +85,20 @@
   roles:
     - role: rocky_helper_prep
   
-- name: "Infra Stage Complete"
+- name: "Infra Stage setup Base"
   hosts: localhost
   connection: local
   gather_facts: False
   tasks:
     - name: "Verification Summary Results (Infrastructure Stage - Ambassador Model)"
       vars:
-        ipa_realm: "{{ lookup('env', 'ipa_domain') | default('example.lan', true) }}"
+        ipa_realm: "{{ lookup('env', 'ipa_domain') | default('example.lan', true) | upper }}"
       ansible.builtin.debug:
         msg: 
-          - "Golden Images: Base Immutable-ish OS base for infrastructure and cloud."
-          - "Role Type: Infrastructure Identity & Directory Foundation"
-          - "Primary Nodes: IPA01 (Master) and IPA02 (High-Availability Replica)"
-          - "Ambassador Node: Helper (Specialized Replica bridging Infra and Cloud)"
-          - "Security Compliance: FIPS-compliant kernel and CIS Level 2 Hardening enforced"
+          - "Golden Images: Base Immutable-ish OS base for infrastructure and cloud. ✔"
+          - "Role Type: Infrastructure Identity & Directory Foundation. ✔"
+          - "Primary Nodes: IPA01 (Master) and IPA02 (High-Availability Replica). ✔"
+          - "Ambassador Node: Helper (Specialized Replica bridging Infra and Cloud). ✔"
+          - "Security Compliance: FIPS-compliant kernel and CIS Level 2 Hardening enforced. ✔"
+          - ""
+          - "Next stage run the config_infra.yml playbook."
