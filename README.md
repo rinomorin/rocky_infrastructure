@@ -94,7 +94,6 @@ The initial playbooks act as both a builder and a security auditor:
 * **Identity Enrollment**: Nodes are enrolled into the IPA realm to receive unique host principals and the CA trust chain.
 * **Network Lockdown**: `firewalld` is locked to strictly necessary ports, and PAM is reconfigured with **faillock** to prevent brute-force attacks.
 
-<<<<<<< Updated upstream
 ---
 ## 🚀 Playbook Overview
 **setup_environment.yml:** The primary orchestrator. We use this to clear the environment, build the golden images, and prepare the helper nodes.
@@ -150,72 +149,3 @@ The initial playbooks act as both a builder and a security auditor:
 ansible-execute: A wrapper script that passes consistent variables to our playbooks.
 
 state/deployment_report.json: Our central database for tracking active VMs and safe-to-delete lists.
-=======
-Tasks and Roles: 
-rmorin@rl-10:/opt/dev/projects/DarkWeb/rocky_infrastructure$ tree .
-.
-├── ansible
-│   ├── ansible.cfg
-│   ├── inventory.yml
-│   ├── inventory.yml.sample
-│   ├── playbooks
-│   │   ├── config_infra.yml
-│   │   ├── setup_environment.yml
-│   │   └── test.yml
-│   ├── roles
-│   │   ├── rocky_helper_prep
-│   │   │   ├── defaults
-│   │   │   │   └── main.yml
-│   │   │   └── tasks
-│   │   │       ├── 01_prep_nodes_ssh.yml
-│   │   │       ├── 02_prep_helper_python.yml
-│   │   │       ├── main.yml
-│   │   │       └── pre_prep.yml
-│   │   ├── rocky_infra_golden
-│   │   │   ├── defaults
-│   │   │   │   └── main.yml
-│   │   │   ├── files
-│   │   │   │   └── requirements.txt
-│   │   │   ├── requirements.txt
-│   │   │   ├── tasks
-│   │   │   │   ├── 00_create_golden.yml
-│   │   │   │   ├── 01_wait_for_shutdown.yml
-│   │   │   │   ├── 02_secure_golden.yml
-│   │   │   │   ├── 03_sysprep.yml
-│   │   │   │   ├── 04_write_json.yml
-│   │   │   │   ├── main.yml
-│   │   │   │   └── pre-cleanup.yml
-│   │   │   └── templates
-│   │   │       ├── golden_base.ks.j2
-│   │   │       └── golden_k8s.ks.j2
-│   │   ├── rocky_ipa
-│   │   │   ├── defaults
-│   │   │   │   └── main.yml
-│   │   │   └── tasks
-│   │   │       ├── check_status.yml
-│   │   │       ├── connections.yml
-│   │   │       ├── install_ipa.yml
-│   │   │       ├── ipa_master.yml
-│   │   │       ├── ipa_replica.yml
-│   │   │       ├── ipa_service_check.yml
-│   │   │       └── main.yml
-│   │   └── rocky_server_deploy
-│   │       ├── defaults
-│   │       │   └── main.yml
-│   │       ├── handlers
-│   │       │   └── main.yml
-│   │       └── tasks
-│   │           ├── 01_determine_os_identity.yml
-│   │           ├── 02_clone_to_guest.yml
-│   │           ├── 03_Config_guest.yml
-│   │           ├── main.yml
-│   │           ├── post_clone.yml
-│   │           ├── pre_clone.yml
-│   │           ├── set_guest_nic.yml
-│   │           └── write_json.yml
-│   ├── state
-│   │   └── deployment_report.json
-├── ansible-execute
-├── env_build.sh
-└── README.md
->>>>>>> Stashed changes
