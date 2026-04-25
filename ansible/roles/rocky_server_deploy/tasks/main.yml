@@ -37,3 +37,30 @@
     pro_seg: "{{ net_provider }}"
   include_tasks: post_clone.yml
   when: guest_member in groups['helpers']
+
+- name: "Storage - Cleanup Orphaned Golden Images"
+  ansible.builtin.shell: |
+    # 1. Identify GI names
+    GI_NAMES=$(virsh list --all --name | grep "^gi-" | grep -v "20260425"| sed 's/[[:space:]]//g'| tr -d "\n")
+    
+    # 2. Capture XML from all running VMs into one searchable blob
+    # We use '|| true' to prevent failure if no VMs are running
+    PROTECTOR_XML=$(virsh list --name | grep . | xargs -I {} virsh dumpxml {} 2>/dev/null || true)
+    
+    # 3. Process the cleanup
+    echo "$GI_NAMES" | while read -r gi; do
+        [ -z "$gi" ] && continue
+        
+        if echo "$PROTECTOR_XML" | grep -q "$gi"; then
+            # Found a reference - keep it safe
+            echo "KEEPING: $gi is in use by a running node."
+            : 
+        else
+            # No reference found - execute deletion
+            echo "DELETING: $gi is orphaned."
+            virsh undefine "$gi" --nvram || true
+            rm -f "/var/lib/libvirt/images/$gi.qcow2"
+        fi
+    done
+  register: cleanup_output
+  changed_when: "'DELETING' in cleanup_output.stdout"
