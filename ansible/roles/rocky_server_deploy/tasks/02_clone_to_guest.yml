@@ -86,7 +86,26 @@
           --graphics none \
           --noautoconsole \
           --noreboot
-  
+
+    - name: Fix stuck virtual NIC link state on KVM host
+      become: yes
+      shell: |
+        # Check if the 'link state=down' exists in the VM XML
+        if virsh dumpxml {{ guest_member }} | grep -q "<link state='down'/>"; then
+          echo "Fixing link state for {{ guest_member }}..."
+          
+          # Dump, strip the down state line, and redefine
+          virsh dumpxml {{ guest_member }} > /tmp/{{ guest_member }}_fix.xml
+          sed -i "/<link state='down'\/>/d" /tmp/{{ guest_member }}_fix.xml
+          virsh define /tmp/{{ guest_member }}_fix.xml      
+          echo "changed"
+        else
+          echo "NICs state already healthy"
+        fi
+      loop: "{{ groups['hahost'] }}"
+      register: virsh_fix_output
+      changed_when: "'changed' in virsh_fix_output.stdout"
+
     - name: "Ensure ownership for {{ guest_member }} disk"
       become: yes
       file:
