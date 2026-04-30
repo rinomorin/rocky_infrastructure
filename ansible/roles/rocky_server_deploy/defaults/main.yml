@@ -11,6 +11,7 @@ build_timestamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M') }}"
 build_loops: "{{ BUILD_LOOPS_VAR | default(lookup('env', 'build_loops')) | default(120, true) }}"
 cloud_zone: "{{ lookup('env', 'cloud_zone') | default('example.lan', true) }}"
 public_zone: "{{ lookup('env', 'public_zone') | default('example.lan', true) }}"
+private_zone: "{{ cloud_zone.replace(cloud_zone.split('.')[-1], 'local') | default('example.lan', true) }}"
 provision_zone: "{{ lookup('env', 'cloud_provision') | default('example.lan', true) }}"
 tos_variant: "{{ '10' if build_profile == 'infra' else '9' }}"
 safe_os_version: "{{ tos_variant | replace('.', 'r') }}"
@@ -24,3 +25,4 @@ net_provision: "{{ CLD_SEG| default(lookup('env', 'CLD_SEG')) | default('default
 tram_size: "{{ 4096 if build_profile == 'infra' else 8192 }}"
 tcpu_count: "{{ 2 if build_profile == 'infra' else 4 }}"
 tdisk_size: "{{ 40 if build_profile == 'infra' else 60 }}"
+

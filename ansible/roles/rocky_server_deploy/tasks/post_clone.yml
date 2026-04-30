@@ -1,110 +1,45 @@
-# get my id_rsa.pub. 
-- name: "Discover IP for {{ guest_member }}"
-  become: true
-  shell: |
-    virsh domifaddr {{ guest_member }} --source agent 2>/dev/null | \
-    grep -Evi "lo|ipv6|Name|---" | \
-    grep -oP '(\d{1,3}\.){3}\d{1,3}' | head -n 1
-  register: live_guest_ip_out
-  changed_when: false
-  
-- name: Set target IP fact
-  set_fact:
-    target_ip: "{{ live_guest_ip_out.stdout }}"
-
-- name: Set key as a fact
-  delegate_to: localhost
-  become: false
-  set_fact:
-    my_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
-
-- name: Set key as a fact
-  become: false
-  ansible.builtin.shell:
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa core@{{ target_ip }} "
-      if grep "my_public_key" ~/.ssh/authorized_keys; then 
-        echo "key already exists"; 
-      else
-        echo "{{ my_public_key }}" >> ~/.ssh/authorized_keys;
-      fi
-    "
-
-- name: "FIPS Enforcement: SSH Probe for Helper Node {{ guest_member }}"
-  become: false
-  when: guest_member in groups['helpers']
-  ansible.builtin.shell: |
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-    -o BatchMode=yes -o ConnectTimeout=5 -i .ssh/id_rsa \
-    core@{{ guest_configs[guest_member].interfaces[pro_seg].ip }} "
-      if ! sudo -n fips-mode-setup --check | grep -q 'is enabled'; then
-        echo 'Enabling FIPS and rebooting...'
-        # Chaining with sudo -n ensures no password prompt is ever generated
-        sudo -n fips-mode-setup --enable && sudo -n reboot
-      else
-        echo 'FIPS already enabled'
-      fi
-    "
-  register: live_check
-  failed_when: false
-  changed_when: "'Enabling FIPS' in live_check.stdout"
-
-- name: Wait for SSH Key Auth to become available
-  ansible.builtin.command: >
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 
-    -o BatchMode=yes -o ConnectTimeout=5 -i .ssh/id_rsa
-    core@{{ guest_configs[guest_member].interfaces[pro_seg].ip }} "uptime"
-  register: ssh_recovery
-  until: ssh_recovery.rc == 0
-  retries: 30
-  delay: 10
-  when: 
-    - guest_member in groups['helpers']
-    - live_check.changed
-
-- name: "Helper Specific - Fix Default Route and DNS"
+- name: "Helper Specific - Manual Route Reconstruction"
   become: false
   when: guest_member in groups['helpers']
   vars:
     ipa_master_ip: "{{ hostvars[groups['ipa'][0]]['ansible_host'] }}"
+    ipa_gatway: "{{ ipa_master_ip.split('.')[:-1] | join('.') }}.1"
+    provision_ip: "{{ guest_configs[guest_member]['provision_ip'] }}"
+    provision_gateway: "{{ provision_ip.split('.')[:-1] | join('.') }}.1"
+    pro_seg: "{{ net_provider }}"
     target_host: "core@{{ guest_configs[guest_member].interfaces[pro_seg].ip }}"
     ssh_opts: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ConnectTimeout=5 -i .ssh/id_rsa"
   block:
-    - name: "Helper - Force Metric Flush and DNS"
+    - name: "Helper - Delete 172 Route and Force 192 Gateway"
       ansible.builtin.shell: |
         ssh {{ ssh_opts }} {{ target_host }} '
-        # Get Connection Names
+        # 1. Update the configs so they persist after reboot
         C_3=$(sudo nmcli -t -f NAME,DEVICE connection show --active | grep enp3s0 | cut -d: -f1)
         C_2=$(sudo nmcli -t -f NAME,DEVICE connection show --active | grep enp2s0 | cut -d: -f1)
         C_1=$(sudo nmcli -t -f NAME,DEVICE connection show --active | grep enp1s0 | cut -d: -f1)
+        
+        [ -n "$C_3" ] && sudo nmcli connection modify "$C_3" ipv4.route-metric 100 ipv4.gateway {{ ipa_gatway}} ipv4.dns "{{ ipa_master_ip }}" ipv4.ignore-auto-dns yes
+        [ -n "$C_2" ] && sudo nmcli connection modify "$C_2" ipv4.route-metric 200 ipv4.gateway {{ provision_gateway }} ipv4.dns "{{ provision_ip }}" ipv4.ignore-auto-dns yes
+        [ -n "$C_1" ] && sudo nmcli connection modify "$C_1" ipv4.route-metric 300 ipv4.never-default yes
 
-        # 1. Apply configurations
-        [ -n "$C_3" ] && sudo nmcli connection modify "$C_3" ipv4.route-metric 100 ipv4.dns "{{ ipa_master_ip }}" ipv4.ignore-auto-dns yes
-        [ -n "$C_2" ] && sudo nmcli connection modify "$C_2" ipv4.route-metric 200
-        [ -n "$C_1" ] && sudo nmcli connection modify "$C_1" ipv4.route-metric 300
-
-        # 2. Hard Refresh: This is required to kill the old metric 100 routes
-        # We do this in the background to avoid dropping the SSH session prematurely
-        (
-          [ -n "$C_1" ] && sudo nmcli connection down "$C_1"
-          [ -n "$C_2" ] && sudo nmcli connection down "$C_2"
-          [ -n "$C_3" ] && sudo nmcli connection down "$C_3"
-          sleep 2
-          [ -n "$C_3" ] && sudo nmcli connection up "$C_3"
-          [ -n "$C_2" ] && sudo nmcli connection up "$C_2"
-          [ -n "$C_1" ] && sudo nmcli connection up "$C_1"
-        ) > /dev/null 2>&1 &
+        # 2. Immediate Kernel Routing Table Override
+        # Manually delete the specific 172.16 gateway route
+        sudo ip route del default via 172.16.0.1 dev $C_1 || true
+        
+        # Ensure the 192.168 route exists and is the default
+        sudo ip route add default via {{ ipa_gatway}} dev $C_3 proto static metric 100 || \
+        sudo ip route change default via {{ ipa_gatway}} dev $C_3 proto static metric 100
+        
+        # 3. Clean up resolv.conf manually to be sure
+        echo -e "search {{ public_zone }} {{ cloud_zone }}\nnameserver {{ ipa_master_ip }}\nnameserver 8.8.8.8" | sudo tee /etc/resolv.conf
         '
-      register: helper_route_fix
+      register: route_nuclear_fix
 
-    - name: "Wait for Network to stabilize"
-      ansible.builtin.pause:
-        seconds: 10
-
-    - name: "Helper - Verify Final Route"
+    - name: "Helper - Final Route Verification"
       ansible.builtin.shell: |
         ssh {{ ssh_opts }} {{ target_host }} "ip route"
-      register: final_route_verify
+      register: final_check
       changed_when: false
 
     - debug:
-        var: final_route_verify.stdout_lines
+        msg: "{{ final_check.stdout_lines }}"
