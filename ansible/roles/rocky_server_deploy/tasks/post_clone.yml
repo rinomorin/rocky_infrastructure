@@ -78,9 +78,9 @@
         CONN_ENP1=$(sudo nmcli -t -f NAME,DEVICE connection show --active | grep enp1s0 | cut -d: -f1)
 
         # Modify connections only if found
-        [ -n "$CONN_ENP3" ] && sudo nmcli connection modify "$CONN_ENP3" ipv4.route-metric 100 ipv4.dns "{{ ipa_master_ip }}" ipv4.ignore-auto-dns yes
-        [ -n "$CONN_ENP2" ] && sudo nmcli connection modify "$CONN_ENP2" ipv4.route-metric 200 ipv4.dns "{{ ipa_master_ip }}" ipv4.ignore-auto-dns yes
-        [ -n "$CONN_ENP1" ] && sudo nmcli connection modify "$CONN_ENP1" ipv4.route-metric 300 
+        [ -n "$CONN_ENP3" ] && sudo nmcli connection modify "$CONN_ENP3" ipv4.route-metric 101 ipv4.dns "{{ ipa_master_ip }}" ipv4.ignore-auto-dns yes
+        [ -n "$CONN_ENP2" ] && sudo nmcli connection modify "$CONN_ENP2" ipv4.route-metric 202 ipv4.dns "{{ ipa_master_ip }}" ipv4.ignore-auto-dns yes
+        [ -n "$CONN_ENP1" ] && sudo nmcli connection modify "$CONN_ENP1" ipv4.route-metric 303 
         
         # Apply changes
         [ -n "$CONN_ENP3" ] && sudo nmcli connection up "$CONN_ENP3"
