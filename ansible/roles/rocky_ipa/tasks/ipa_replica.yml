@@ -187,14 +187,17 @@
   when: ipa_stage == 'unconfigured'
   # no_log: true
 
-- name: "DNS - Configure Global Forwarders if Res==olution Fails"
+- name: "DNS - Configure Global Forwarders if Resolution Fails"
   become: yes
   ansible.builtin.shell: |
     echo '{{ ipa_admin_password }}' | kinit admin && \
     ipa dnsconfig-mod --forwarder=8.8.8.8 --forwarder=1.1.1.1 --forward-policy=first
-  # Only run this if the host command failed (rc != 0)
-  when: ipa_stage == 'unconfigured'
   register: forwarder_fix_out
+  # This prevents the "no modifications" error from stopping the playbook
+  failed_when: 
+    - forwarder_fix_out.rc != 0 
+    - "'no modifications to be performed' not in forwarder_fix_out.stderr"
+  when: ipa_stage == 'unconfigured'
 
 - name: "DNS - Check External Resolution"
   ansible.builtin.command: "host github.com 127.0.0.1"
