@@ -62,8 +62,10 @@
     - live_check.changed
 
 - name: "Helper Specific - Fix Default Route and DNS"
-  become: yes
-  when: "'helpers' in group_names"
+  become: false
+  when: guest_member in groups['helpers']
+  vars:
+    ipa_master_ip: "{{ hostvars[groups['ipa'][0]]['ansible_host']) }}"
   block:
     - name: "Helper - Ensure enp3s0 is the primary gateway"
       ansible.builtin.shell: |
@@ -71,9 +73,10 @@
         -o BatchMode=yes -o ConnectTimeout=5 -i .ssh/id_rsa \
         core@{{ guest_configs[guest_member].interfaces[pro_seg].ip }} "
         # Force the 192.168 interface to have the priority
-        sudo mcli connection modify "$(nmcli -t -f NAME,DEVICE connection show --active | grep enp3s0 | cut -d: -f1)" ipv4.route-metric 10 ipv4.dns "{{ ipa_master_ip }}" ipv4.ignore-auto-dns yes
+        sudo nmcli connection modify "$(nmcli -t -f NAME,DEVICE connection show --active | grep enp3s0 | cut -d: -f1)" ipv4.route-metric 100 ipv4.dns "{{ ipa_master_ip }}" ipv4.ignore-auto-dns yes
+        sudo nmcli connection modify "$(nmcli -t -f NAME,DEVICE connection show --active | grep enp2s0 | cut -d: -f1)" ipv4.route-metric 200 ipv4.dns "{{ ipa_master_ip }}" ipv4.ignore-auto-dns yes
         # Push the 172.16 interface to a lower priority
-        sudo nmcli connection modify "$(nmcli -t -f NAME,DEVICE connection show --active | grep enp1s0 | cut -d: -f1)" ipv4.route-metric 200 
+        sudo nmcli connection modify "$(nmcli -t -f NAME,DEVICE connection show --active | grep enp1s0 | cut -d: -f1)" ipv4.route-metric 300 
         # Refresh connections to apply the new routing table
         sudo nmcli connection up "$(nmcli -t -f NAME,DEVICE connection show --active | grep enp3s0 | cut -d: -f1)"
         "
