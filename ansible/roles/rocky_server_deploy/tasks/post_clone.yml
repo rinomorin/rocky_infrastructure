@@ -65,7 +65,7 @@
   become: false
   when: guest_member in groups['helpers']
   vars:
-    ipa_master_ip: "{{ hostvars[groups['ipa'][0]]['ansible_host']) }}"
+    ipa_master_ip: "{{ hostvars[groups['ipa'][0]]['ansible_host'] }}"
   block:
     - name: "Helper - Ensure enp3s0 is the primary gateway"
       ansible.builtin.shell: |
