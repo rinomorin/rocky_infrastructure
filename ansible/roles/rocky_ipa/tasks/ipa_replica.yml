@@ -187,20 +187,21 @@
   when: ipa_stage == 'unconfigured'
   # no_log: true
 
+- name: "DNS - Configure Global Forwarders if Res==olution Fails"
+  become: yes
+  ansible.builtin.shell: |
+    echo '{{ ipa_admin_password }}' | kinit admin && \
+    ipa dnsconfig-mod --forwarder=8.8.8.8 --forwarder=1.1.1.1 --forward-policy=first
+  # Only run this if the host command failed (rc != 0)
+  when: ipa_stage == 'unconfigured'
+  register: forwarder_fix_out
+
 - name: "DNS - Check External Resolution"
   ansible.builtin.command: "host github.com 127.0.0.1"
   register: external_dns_check
   ignore_errors: yes
   changed_when: false
 
-- name: "DNS - Configure Global Forwarders if Resolution Fails"
-  become: yes
-  ansible.builtin.shell: |
-    echo '{{ ipa_admin_password }}' | kinit admin && \
-    ipa dnsconfig-mod --forwarder=8.8.8.8 --forwarder=1.1.1.1 --forward-policy=first
-  # Only run this if the host command failed (rc != 0)
-  when: external_dns_check.rc != 0
-  register: forwarder_fix_out
 # --- STAGE 3: RECOVERY & HEALTH VERIFICATION ---
 # --------------------------------
 - name: Replica Health Verification
