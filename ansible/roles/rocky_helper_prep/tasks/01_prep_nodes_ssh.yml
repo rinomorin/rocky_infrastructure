@@ -20,12 +20,6 @@
   register: helper_pub_key_raw
   changed_when: false
 
-# - name: Set key as a fact
-#   delegate_to: localhost
-#   become: false
-#   set_fact:
-#     my_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
-
 - name: Clean Public Key Fact
   set_fact:
     # This grabs only the last line, ensuring we don't get the 'Generating...' text
