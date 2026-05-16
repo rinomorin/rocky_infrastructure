@@ -160,7 +160,8 @@
   until: local_dns_check.rc == 0
   retries: 12
   delay: 5
-  # We wait up to 60 seconds for Bind to reload the zone internally.
+
+# We wait up to 60 seconds for Bind to reload the zone internally.
 # -----------------------------
 - name: Ensure loopback interface is trusted under CIS Drop Zone
   ansible.posix.firewalld:
@@ -173,23 +174,6 @@
 # --- STAGE 2: INSTALLATION ---
 # --------------------------------
 - name: Configure IPA Secondary Replica (with CA & DNS)
-  ansible.builtin.shell:
-    cmd: >
-      umask 022 && ipa-replica-install --unattended 
-      --principal=admin 
-      --admin-password='{{ ipa_admin_password }}' 
-      --server={{ hostvars[groups['ipa_servers'][0]]['inventory_hostname'] }} 
-      --domain={{ ipa_domain }} 
-      --realm={{ ipa_realm | upper }} 
-      --hostname={{ inventory_hostname }}.{{ ipa_domain }} 
-      --setup-ca 
-      --setup-dns 
-      --no-forwarders 
-      --no-host-dns
-
-# --- STAGE 2: INSTALLATION ---
-# --------------------------------
-- name: Configure IPA Secondary Replica (with CA & DNS)
   become: yes
   environment:
     PKI_TIMEOUT: "900" # Replicas can take longer during LDAP sync
@@ -198,10 +182,10 @@
       --unattended \
       --principal=admin \
       --admin-password='{{ ipa_admin_password }}' \
-      --server={{ ipa_master_fqdn }} \
+      --server={{ hostvars[groups['ipa_servers'][0]]['inventory_hostname'] }}  \
       --domain={{ ipa_domain | lower }} \
       --realm={{ ipa_domain | upper }} \
-      --hostname={{ ansible_facts['fqdn'] }} \
+      --hostname={{ inventory_hostname }}.{{ ipa_domain }} \
       --setup-ca \
       --setup-dns \
       --no-forwarders \
