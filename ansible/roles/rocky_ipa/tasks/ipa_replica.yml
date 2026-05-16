@@ -220,6 +220,10 @@
     - "'no modifications to be performed' not in forwarder_fix_out.stderr"
   when: ipa_stage == 'unconfigured'
 
+- name: Ensure dns updates
+  wait_for_connection:
+    timeout: 20
+
 - name: "DNS - Check External Resolution"
   ansible.builtin.command: "host github.com 127.0.0.1"
   register: external_dns_check
