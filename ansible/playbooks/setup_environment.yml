@@ -77,12 +77,12 @@
       loop_control:
         loop_var: guest_member
 
-    - name: Apply Hardened Firewall Profiles to Identity & Mesh
-      include_role:
-        name: firewall-ipa
-      loop: "{{ target_guests }}"
-      loop_control:
-        loop_var: guest_member
+    # - name: Apply Hardened Firewall Profiles to Identity & Mesh
+    #   include_role:
+    #     name: firewall-ipa
+    #   loop: "{{ target_guests }}"
+    #   loop_control:
+    #     loop_var: guest_member
 
 - name: Pre Helper as new controller
   hosts: kvm
