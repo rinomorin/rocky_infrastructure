@@ -162,7 +162,30 @@
   delay: 5
   # We wait up to 60 seconds for Bind to reload the zone internally.
 # -----------------------------
+- name: Ensure loopback interface is trusted under CIS Drop Zone
+  ansible.posix.firewalld:
+    zone: drop
+    interface: lo
+    state: enabled
+    permanent: true
+    immediate: true
 
+# --- STAGE 2: INSTALLATION ---
+# --------------------------------
+- name: Configure IPA Secondary Replica (with CA & DNS)
+  ansible.builtin.shell:
+    cmd: >
+      umask 022 && ipa-replica-install --unattended 
+      --principal=admin 
+      --admin-password='{{ ipa_admin_password }}' 
+      --server={{ hostvars[groups['ipa_servers'][0]]['inventory_hostname'] }} 
+      --domain={{ ipa_domain }} 
+      --realm={{ ipa_realm | upper }} 
+      --hostname={{ inventory_hostname }} 
+      --setup-ca 
+      --setup-dns 
+      --no-forwarders 
+      --no-host-dns
 
 # --- STAGE 2: INSTALLATION ---
 # --------------------------------
