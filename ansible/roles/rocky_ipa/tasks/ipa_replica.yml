@@ -181,7 +181,7 @@
       --server={{ hostvars[groups['ipa_servers'][0]]['inventory_hostname'] }} 
       --domain={{ ipa_domain }} 
       --realm={{ ipa_realm | upper }} 
-      --hostname={{ inventory_hostname }} 
+      --hostname={{ inventory_hostname }}.{{ ipa_domain }} 
       --setup-ca 
       --setup-dns 
       --no-forwarders 
