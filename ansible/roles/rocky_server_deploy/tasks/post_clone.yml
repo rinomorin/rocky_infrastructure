@@ -63,13 +63,16 @@
 
 - name: Day-0 Bootstrap - Hardened CIS Firewall Profiles
   become: false
+  vars:
+    # Safely extracts and formats the CIDRs into a space-separated bash array string
+    bash_networks: "{{ libvirt_networks | map(attribute='cidr') | join(' ') }}"
   ansible.builtin.shell: |
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i .ssh/id_rsa core@{{ target_ip }} 'bash -s' << 'EOF'
     # Ensure the default zone is set to drop for CIS Level 2
     sudo firewall-cmd --set-default-zone=drop
 
-    # Define our networks and standard services
-    NETWORKS=("10.0.0.0/24" "192.168.100.0/24" "172.16.0.0/24")
+    # Fed cleanly as a pre-constructed string from our inventory variables
+    NETWORKS=( {{ bash_networks }} )
     SERVICES=("http" "https" "dns" "dns-over-tls" "ldap" "ldaps" "kerberos" "ssh" "ntp")
     PORTS=("8443/tcp" "8080/tcp" "3268/tcp" "3269/tcp")
 
