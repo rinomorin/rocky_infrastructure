@@ -50,11 +50,14 @@
     state: directory
     mode: '0755'
   
+- name: Audit the current default firewalld zone
+  ansible.builtin.command: firewall-cmd --get-default-zone
+  register: current_default_zone
+  changed_when: false
+
 - name: Ensure default zone is set to drop for CIS Level 2
-  ansible.posix.firewalld:
-    set_default_zone: drop
-    permanent: true
-    state: enabled
+  ansible.builtin.command: firewall-cmd --set-default-zone=drop
+  when: current_default_zone.stdout != 'drop'
 
 - name: Apply Service-Based Rich Rules to Trusted Networks
   ansible.posix.firewalld:
