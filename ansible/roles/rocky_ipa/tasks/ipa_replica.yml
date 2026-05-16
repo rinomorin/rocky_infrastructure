@@ -182,10 +182,10 @@
       --unattended \
       --principal=admin \
       --admin-password='{{ ipa_admin_password }}' \
-      --server={{ hostvars[groups['ipa_servers'][0]]['inventory_hostname'] }}  \
+      --server={{ hostvars[groups['ipa_servers'][0]]['hostname'] }}  \
       --domain={{ ipa_domain | lower }} \
       --realm={{ ipa_domain | upper }} \
-      --hostname={{ inventory_hostname }}.{{ ipa_domain }} \
+      --hostname={{ hostvars[inventory_hostname]['hostname'] }} \
       --setup-ca \
       --setup-dns \
       --no-forwarders \
