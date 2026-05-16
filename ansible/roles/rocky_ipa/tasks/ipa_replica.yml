@@ -171,6 +171,19 @@
     permanent: true
     immediate: true
 
+- name: Allow all traffic originating from the local loopback subnet
+  ansible.posix.firewalld:
+    zone: drop
+    source: "127.0.0.1/32"
+    state: enabled
+    permanent: true
+    immediate: true
+
+- name: Reload Firewalld immediately to enforce loopback tracking
+  ansible.builtin.service:
+    name: firewalld
+    state: reloaded
+
 # --- STAGE 2: INSTALLATION ---
 # --------------------------------
 - name: Configure IPA Secondary Replica (with CA & DNS)
