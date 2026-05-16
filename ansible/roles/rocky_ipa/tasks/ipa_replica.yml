@@ -182,9 +182,9 @@
       --unattended \
       --principal=admin \
       --admin-password='{{ ipa_admin_password }}' \
-      --server={{ hostvars[groups['ipa_servers'][0]]['hostname'] }}  \
-      --domain={{ ipa_domain | lower }} \
-      --realm={{ ipa_domain | upper }} \
+      --server={{ hostvars[groups['ipa'][0]]['hostname'] }}  \
+      --domain={{ hostvars[groups['ipa'][0]]['hostname'].split('.')[1:] | join('.') | lower }} \
+      --realm={{ hostvars[groups['ipa'][0]]['hostname'].split('.')[1:] | join('.') | upper }} \
       --hostname={{ hostvars[inventory_hostname]['hostname'] }} \
       --setup-ca \
       --setup-dns \
