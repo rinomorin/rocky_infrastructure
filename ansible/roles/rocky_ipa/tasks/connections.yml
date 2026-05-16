@@ -61,58 +61,36 @@
   register: set_hostname
   changed_when: false
 
-- name: Allow IPA services in the drop zone
+- name: Ensure default zone is set to drop for CIS Level 2
+  ansible.posix.firewalld:
+    set_default_zone: drop
+    permanent: true
+    state: enabled
+
+- name: Apply Service-Based Rich Rules to Trusted Networks
   ansible.posix.firewalld:
     zone: drop
-    service: "{{ item }}"
+    rich_rule: 'rule family="ipv4" source address="{{ item.0 }}" service name="{{ item.1 }}" accept'
     permanent: true
-    immediate: true
     state: enabled
-  become: true
-  loop:
-    - http
-    - https
-    - dns
-    - dns-over-tls
-    - ldap
-    - ldaps
-    - kerberos
-    - ssh
-    - ntp
+  with_nested:
+    - "{{ trusted_subnets }}"
+    - "{{ compliance_services }}"
 
-- name: Allow specific IPA ports in the drop zone
+- name: Apply Custom Port-Based Rich Rules to Trusted Networks
   ansible.posix.firewalld:
     zone: drop
-    port: "{{ item }}"
+    rich_rule: 'rule family="ipv4" source address="{{ item.0 }}" port port="{{ item.1.port }}" protocol="{{ item.1.proto }}" accept'
     permanent: true
-    immediate: true
     state: enabled
-  become: true
-  loop:
-    - 80/tcp
-    - 443/tcp
-    - 53/tcp
-    - 53/udp
-    - 88/tcp
-    - 88/udp
-    - 123/udp
-    - 389/tcp
-    - 636/tcp
-    - 464/tcp
-    - 464/udp
-    - 8443/tcp
-    - 8080/tcp
-    - 3268/tcp
-    - 3269/tcp
+  with_nested:
+    - "{{ trusted_subnets }}"
+    - "{{ compliance_custom_ports }}"
 
-- name: Set default firewall zone to drop
-  ansible.builtin.command: firewall-cmd --set-default-zone=drop
-  become: true
-  # Only run this if the default zone isn't already drop
-  register: zone_check
-  changed_when: "'drop' not in zone_check.stdout"
-  # We check the current default first
-  check_mode: false
+- name: Flush and Reload Firewalld to Apply CIS Rules
+  ansible.builtin.service:
+    name: firewalld
+    state: reloaded
   
 # Optional: Verify the active zone is indeed drop
 - name: Verify active default zone

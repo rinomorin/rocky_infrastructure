@@ -19,3 +19,24 @@ ipa_ca_intermediate: "{{ groups['ca_intermediate'][0] }}"
 ipa_ca_intermediate_ip: "{{ hostvars[groups['ca_intermediate'][0]].ansible_host }}"
 ipa_helper: "{{ groups['helpers'][0] }}"
 ipa_helper_ip: "{{ hostvars[groups['helpers'][0]].ansible_host }}"
+# Dynamically extracts the CIDRs from the kvm host inventory structure on the fly
+trusted_subnets: "{{ hostvars[groups['kvm'][0]]['libvirt_networks'] | map(attribute='cidr') | list }}"
+
+# Standard core system services required by the Identity & Mesh infrastructure
+compliance_services:
+  - http
+  - https
+  - dns
+  - dns-over-tls
+  - ldap
+  - ldaps
+  - kerberos
+  - ssh
+  - ntp
+
+# Non-standard or auxiliary application ports requiring explicit transport mapping
+compliance_custom_ports:
+  - { port: "8443", proto: "tcp" } # Custom Management Dashboard UI
+  - { port: "8080", proto: "tcp" } # Alternative Web Server / Reverse Proxy
+  - { port: "3268", proto: "tcp" } # Active Directory / FreeIPA Global Catalog (Plain)
+  - { port: "3269", proto: "tcp" } # Active Directory / FreeIPA Global Catalog (SSL)
