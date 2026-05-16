@@ -32,7 +32,7 @@
 
 
 - name: Get list of all VMs matching the prefix
-  shell: "virsh list --all --name | grep '^gi-{{ build_profile }}-{{ safe_os_version }}-'|grep -v 'win' "
+  shell: "virsh list --all --name | grep '^gi-{{ build_profile }}-{{ safe_os_version }}-'"
   register: matching_vms
   failed_when: false
   changed_when: false

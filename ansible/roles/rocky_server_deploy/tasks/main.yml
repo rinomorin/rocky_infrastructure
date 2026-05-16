@@ -30,6 +30,10 @@
   # Only run if the node is NOT reachable OR we explicitly requested a reclone
   when: not skip_config | bool
 
+# - name: Set Chrony Configuration
+#   include_tasks: set_chrony.yml
+#   # Only run if the node is NOT reachable OR we explicitly requested a reclone
+  
 # - name: Update Member network connectivity
 #   import_tasks: 03_Config_guest.yml
 - name: post initialise fips

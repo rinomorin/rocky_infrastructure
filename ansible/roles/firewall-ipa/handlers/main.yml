@@ -1,0 +1,8 @@
+---
+# roles/firewall-ipa/handlers/main.yml
+
+- name: Reload Firewalld on Guest
+  ansible.builtin.service:
+    name: firewalld
+    state: reloaded
+  delegate_to: "{{ guest_member }}"

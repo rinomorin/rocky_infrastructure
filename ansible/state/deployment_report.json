@@ -247,6 +247,44 @@
                 "k8s": "1.34"
             }
         },
+        "gi-infra-10-20260511": {
+            "build_date": "20260511",
+            "login": {
+                "ssh_key_path": "~/.ssh/id_rsa.pub",
+                "user": "core"
+            },
+            "name": "gi-infra-10-20260511",
+            "os_variant": "10",
+            "profile": "infra",
+            "specs": {
+                "cpu": 2,
+                "disk": 40,
+                "ram": 4096
+            },
+            "versions": {
+                "crio": "1.34",
+                "k8s": "1.34"
+            }
+        },
+        "gi-infra-10-20260515": {
+            "build_date": "20260515",
+            "login": {
+                "ssh_key_path": "~/.ssh/id_rsa.pub",
+                "user": "core"
+            },
+            "name": "gi-infra-10-20260515",
+            "os_variant": "10",
+            "profile": "infra",
+            "specs": {
+                "cpu": 2,
+                "disk": 40,
+                "ram": 4096
+            },
+            "versions": {
+                "crio": "1.34",
+                "k8s": "1.34"
+            }
+        },
         "gi-k8s-9-20260410": {
             "build_date": "20260410",
             "login": {
@@ -493,6 +531,44 @@
                 "crio": "1.34",
                 "k8s": "1.34"
             }
+        },
+        "gi-k8s-9-20260511": {
+            "build_date": "20260511",
+            "login": {
+                "ssh_key_path": "~/.ssh/id_rsa.pub",
+                "user": "core"
+            },
+            "name": "gi-k8s-9-20260511",
+            "os_variant": "9",
+            "profile": "k8s",
+            "specs": {
+                "cpu": 4,
+                "disk": 60,
+                "ram": 8192
+            },
+            "versions": {
+                "crio": "1.34",
+                "k8s": "1.34"
+            }
+        },
+        "gi-k8s-9-20260515": {
+            "build_date": "20260515",
+            "login": {
+                "ssh_key_path": "~/.ssh/id_rsa.pub",
+                "user": "core"
+            },
+            "name": "gi-k8s-9-20260515",
+            "os_variant": "9",
+            "profile": "k8s",
+            "specs": {
+                "cpu": 4,
+                "disk": 60,
+                "ram": 8192
+            },
+            "versions": {
+                "crio": "1.34",
+                "k8s": "1.34"
+            }
         }
     },
     "infrastructure": {
@@ -500,27 +576,27 @@
             "cidr": "172.16.0.0/24",
             "fqdn": "helper.cloud.home.morinsoft.ca",
             "gateway": "172.16.0.1",
-            "image": "gi-k8s-9-20260430.qcow2",
+            "image": "gi-k8s-9-20260511.qcow2",
             "interfaces": {
                 "br-cluster": {
                     "cidr": "10.0.0.0/24",
                     "devname": "enp2s0",
                     "ip": "10.0.0.20",
-                    "mac": "52:54:00:2c:95:e8",
+                    "mac": "52:54:00:97:f5:c5",
                     "name": "br-cluster"
                 },
                 "br-nat": {
                     "cidr": "172.16.0.0/24",
                     "devname": "enp1s0",
                     "ip": "DHCP",
-                    "mac": "52:54:00:a5:89:27",
+                    "mac": "52:54:00:98:17:02",
                     "name": "br-nat"
                 },
                 "default": {
                     "cidr": "192.168.100.0/24",
                     "devname": "enp3s0",
                     "ip": "192.168.100.20",
-                    "mac": "52:54:00:ed:2c:09",
+                    "mac": "52:54:00:7e:1f:11",
                     "name": "default"
                 }
             },
@@ -530,13 +606,13 @@
             "profile": "k8s",
             "provider_ip": "192.168.100.20",
             "provision_ip": "10.0.0.20",
-            "reachable_ip": "172.16.0.183"
+            "reachable_ip": "172.16.0.200"
         },
         "ipa01": {
             "cidr": "192.168.100.0/24",
             "fqdn": "ipa01.home.morinsoft.ca",
             "gateway": "192.168.100.1",
-            "image": "gi-infra-10-20260430.qcow2",
+            "image": "gi-infra-10-20260515.qcow2",
             "interfaces": {
                 "br-cluster": {
                     "cidr": "10.0.0.0/24",
@@ -554,7 +630,7 @@
                     "cidr": "192.168.100.0/24",
                     "devname": "enp1s0",
                     "ip": "192.168.100.10",
-                    "mac": "52:54:00:98:79:a5",
+                    "mac": "52:54:00:a1:ac:2d",
                     "name": "default"
                 }
             },
@@ -564,13 +640,13 @@
             "profile": "infra",
             "provider_ip": "192.168.100.10",
             "provision_ip": "none",
-            "reachable_ip": "192.168.100.50"
+            "reachable_ip": "192.168.100.106"
         },
         "ipa02": {
             "cidr": "192.168.100.0/24",
             "fqdn": "ipa02.home.morinsoft.ca",
             "gateway": "192.168.100.1",
-            "image": "gi-infra-10-20260430.qcow2",
+            "image": "gi-infra-10-20260511.qcow2",
             "interfaces": {
                 "br-cluster": {
                     "cidr": "10.0.0.0/24",
@@ -588,7 +664,7 @@
                     "cidr": "192.168.100.0/24",
                     "devname": "enp1s0",
                     "ip": "192.168.100.11",
-                    "mac": "52:54:00:ab:55:5d",
+                    "mac": "52:54:00:6c:ce:66",
                     "name": "default"
                 }
             },
@@ -598,7 +674,7 @@
             "profile": "infra",
             "provider_ip": "192.168.100.11",
             "provision_ip": "none",
-            "reachable_ip": "192.168.100.221"
+            "reachable_ip": "192.168.100.137"
         }
     }
 }

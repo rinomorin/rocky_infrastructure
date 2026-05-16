@@ -10,7 +10,7 @@ build_timestamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M') }}"
 build_loops: "{{ BUILD_LOOPS_VAR | default(lookup('env', 'build_loops')) | default(120, true) }}"
 VM_HOST: "{{ lookup('env', 'VM_HOST') | default(groups['kvm'][0], true) }}"
 VM_HOST_IP: "{{ lookup('env', 'VM_HOST_IP') | default(hostvars[VM_HOST]['ansible_host'], true) }}"
-cloud_helper_user: "{{ lookup('env', 'CLOUD_HELPER_USER') | default('cloud-helper', true) }}"
+# cloud_helper_user: "{{ lookup('env', 'CLOUD_HELPER_USER') | default('cloud-helper', true) }}"
 
 # OS & Version MappingBUI
 tos_name: "rocky"

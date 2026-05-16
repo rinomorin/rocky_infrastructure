@@ -1,0 +1,33 @@
+---
+# roles/firewall-ipa/tasks/main.yml
+
+- name: Hardening Tasks for {{ guest_member }}
+  delegate_to: "{{ guest_member }}"
+  block:
+    - name: Ensure default zone is set to drop for CIS Level 2
+      ansible.posix.firewalld:
+        set_default_zone: drop
+        permanent: true
+        state: enabled
+
+    - name: Apply Service-Based Rich Rules to Trusted Networks
+      ansible.posix.firewalld:
+        zone: drop
+        rich_rule: 'rule family="ipv4" source address="{{ item.0 }}" service name="{{ item.1 }}" accept'
+        permanent: true
+        state: enabled
+      with_nested:
+        - "{{ trusted_subnets }}"
+        - "{{ compliance_services }}"
+      notify: Reload Firewalld on Guest
+
+    - name: Apply Custom Port-Based Rich Rules to Trusted Networks
+      ansible.posix.firewalld:
+        zone: drop
+        rich_rule: 'rule family="ipv4" source address="{{ item.0 }}" port port="{{ item.1.port }}" protocol="{{ item.1.proto }}" accept'
+        permanent: true
+        state: enabled
+      with_nested:
+        - "{{ trusted_subnets }}"
+        - "{{ compliance_custom_ports }}"
+      notify: Reload Firewalld on Guest

@@ -30,13 +30,20 @@
       changed_when: false # These commands check for updates every time
       when: is_internal_only
 
+- name: Set Chrony and Timezone 
+  gather_facts: false
+  hosts: ipa:helpers:!kvm
+  become: false
+  roles:
+    - role: rocky_infra_chrony
+
 - name: Configure IPA Infrastructure
   hosts: ipa_servers:helpers
   gather_facts: true
   serial: 1
   roles:
     - role: rocky_ipa
-  
+
 - name: "Infra Stage Complete"
   hosts: localhost
   connection: local

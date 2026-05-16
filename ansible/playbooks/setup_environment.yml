@@ -48,6 +48,7 @@
 - name: Build Golden Images
   vars:
     BUILD_PROFILE: "infra"
+    # ansible_user: "{{ hostvars[groups['kvm'][0]]['ansible_user'] }}"
   hosts: kvm
   gather_facts: false
   roles:
@@ -76,6 +77,13 @@
       loop_control:
         loop_var: guest_member
 
+    - name: Apply Hardened Firewall Profiles to Identity & Mesh
+      include_role:
+        name: firewall-ipa
+      loop: "{{ target_guests }}"
+      loop_control:
+        loop_var: guest_member
+
 - name: Pre Helper as new controller
   hosts: kvm
   gather_facts: false
@@ -84,7 +92,7 @@
     target_guests: "{{ (groups['ipa_servers'] + groups['helpers']) | unique }}"
   roles:
     - role: rocky_helper_prep
-  
+
 - name: "Infra Stage setup Base"
   hosts: localhost
   connection: local

@@ -1,0 +1,66 @@
+---
+# TASK 1: Only run on the Primary IPA Node
+- debug: 
+    msg: 
+      - "Processing {{ inventory_hostname }} using {{ ansible_user }}"
+      - "primary_pools: {{ lookup('env', 'my_ntp_pool').split(',') }}"
+      - "ipa_master_host: {{ hostvars[groups['ipa'][0]]['ansible_host'] }}"
+      - "helper_prov_ip: {{ hostvars[groups['helpers'][0]]['provision_ip'] }}"
+      - "ipa_zone_cidr: {{ ipa_master_host.split('.')[:3] | join('.') }}.0/24"
+      - "helper_zone_cidr: {{ helper_prov_ip.split('.')[:3] | join('.') }}.0/24"
+
+- name: Set system timezone to America/Toronto via symlink
+  become: yes
+  ansible.builtin.file:
+    src: /usr/share/zoneinfo/America/Toronto
+    dest: /etc/localtime
+    state: link
+    force: yes  # Overwrites the existing /etc/localtime
+  when: inventory_hostname not in groups['win_worker_nodes']
+
+- name: Configure Primary IPA Master
+  become: yes
+  ansible.builtin.template:
+    src: chrony_ipa.conf.j2
+    dest: /etc/chrony.conf
+  when: inventory_hostname in groups['ipa']
+  notify: Restart chrony
+ 
+# TASK 2: Only run on the Primary Helper Node
+- name: Configure Primary Helper
+  become: yes
+  ansible.builtin.template:
+    src: chrony_helper.conf.j2
+    dest: /etc/chrony.conf
+  when: inventory_hostname in  groups['helpers']
+  notify: Restart chrony
+
+
+- name: Open NTP Port on IPA Masters
+  become: yes
+  ansible.posix.firewalld:
+    service: ntp
+    permanent: yes
+    state: enabled
+    immediate: yes
+  when: group_names | intersect(['ipa', 'helpers']) | length > 0
+
+# TASK 3: Run on all infrastructure hosts (excluding the masters configured above)
+- name: Configure generic infrastructure hosts based on interface availability
+  become: yes
+  ansible.builtin.template:
+    src: chrony_generic.conf.j2
+    dest: /etc/chrony.conf
+  when: 
+    - inventory_hostname not in groups['helpers']
+    - inventory_hostname not in groups['ipa']
+    - inventory_hostname not in groups['win_worker_nodes']
+  notify: Restart chrony
+
+- name: Ensure Chrony is enabled and running
+  become: yes
+  ansible.builtin.service:
+    name: chronyd
+    state: started
+    enabled: yes
+  when: inventory_hostname not in groups['win_worker_nodes']
