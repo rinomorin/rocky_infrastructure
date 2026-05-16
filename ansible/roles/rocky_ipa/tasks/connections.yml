@@ -62,10 +62,9 @@
   changed_when: false
 
 - name: Ensure default zone is set to drop for CIS Level 2
-  ansible.posix.firewalld:
-    set_default_zone: drop
-    permanent: true
-    state: enabled
+  ansible.builtin.command: firewall-cmd --set-default-zone=drop
+  when: current_default_zone.stdout != 'drop'
+
 
 - name: Apply Service-Based Rich Rules to Trusted Networks
   ansible.posix.firewalld:
@@ -91,7 +90,7 @@
   ansible.builtin.service:
     name: firewalld
     state: reloaded
-  
+
 # Optional: Verify the active zone is indeed drop
 - name: Verify active default zone
   ansible.builtin.command: firewall-cmd --get-default-zone
