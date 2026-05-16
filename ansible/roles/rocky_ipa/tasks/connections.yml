@@ -61,6 +61,11 @@
   register: set_hostname
   changed_when: false
 
+- name: Audit the current default firewalld zone
+  ansible.builtin.command: firewall-cmd --get-default-zone
+  register: current_default_zone
+  changed_when: false
+
 - name: Ensure default zone is set to drop for CIS Level 2
   ansible.builtin.command: firewall-cmd --set-default-zone=drop
   when: current_default_zone.stdout != 'drop'
